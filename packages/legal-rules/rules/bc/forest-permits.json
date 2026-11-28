@@ -296,7 +296,29 @@
     "actions": [
       {
         "kind": "review",
-        "description": "Prepare the site plan with the block layout, unless a prescribed circumstance exempts it, and keep it with the block record."
+        "description": "Prepare the site plan with the block layout, unless a prescribed circumstance (FPPR §33) exempts it, and keep it with the block record."
+      }
+    ],
+    "exceptions": [
+      {
+        "id": "fppr-33-cutblock",
+        "label": "For the cutblock: harvesting that must proceed expeditiously to eliminate a safety hazard, collects seed leaving an opening of 1 ha or less, or is limited to 50 m³ or less, or a holder exempt under FPPR §44(3) (FPPR §33(1))",
+        "source": "instrument",
+        "provision": "33(1)",
+        "kind": "by-law",
+        "evidence": [
+          "The circumstance: the hazard, the seed collection and its opening, the volume, or the §44(3) exemption"
+        ]
+      },
+      {
+        "id": "fppr-33-road",
+        "label": "For the road: harvesting limited to removing timber to improve safety for road users, by eliminating a safety hazard, improving visibility, or adding or enlarging pullouts (FPPR §33(2))",
+        "source": "instrument",
+        "provision": "33(2)",
+        "kind": "by-law",
+        "evidence": [
+          "The road work and the timber it removes"
+        ]
       }
     ]
   },

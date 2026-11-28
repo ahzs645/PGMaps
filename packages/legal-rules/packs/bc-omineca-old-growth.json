@@ -1,12 +1,12 @@
 {
   "format": "pgmaps-legal-pack/v1",
   "id": "bc.omineca.old-growth",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "title": "Omineca old growth and sensitive area orders",
-  "description": "Block screens for the legal old growth management areas and sensitive areas set by Omineca land use orders (Dome and Slim, Humbug, the 2010 Mackenzie spatial order, the Ancient Forest Trail), the Mugaha Marsh sensitive area, the Obo River and Fox landscape units, and the Prince George candidate old forest areas the district managers expect to be left unharvested.",
+  "description": "Block screens for the legal old growth management areas and sensitive areas set by Omineca land use orders (Dome and Slim, Humbug, the 2010 Mackenzie spatial order, the Ancient Forest Trail, and any other order, whose own text this release does not hold), the Mugaha Marsh sensitive area, the Obo River and Fox landscape units, and the Prince George candidate old forest areas the district managers expect to be left unharvested.",
   "coverage": {
     "from": "2026-11-17",
-    "through": "2026-11-17"
+    "through": "2026-11-27"
   },
   "facts": [
     {
@@ -172,6 +172,12 @@
       "title": "District managers' letter of expectations, Prince George TSA order, 2022",
       "url": "https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/natural-resource-use/land-water-use/crown-land/land-use-plans-and-objectives/omineca-region/princegeorge-biodiversity-order/district_managers_loe_for_impementation_of_the_pg_tsa_order.pdf",
       "asOf": "2026-11-27"
+    },
+    {
+      "id": "land-act",
+      "title": "Land Act, RSBC 1996 c. 245",
+      "url": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/96245_01",
+      "asOf": "2026-11-17"
     }
   ],
   "rules": [
@@ -533,6 +539,37 @@
         {
           "kind": "review",
           "description": "Move the block or road out of the OGMA."
+        }
+      ]
+    },
+    {
+      "id": "ogma-other-order",
+      "title": "Legal OGMA under an order this release does not hold",
+      "source": "land-act",
+      "provision": "93.4(1)",
+      "scope": [
+        [
+          {
+            "fact": "ogma-order",
+            "op": "eq",
+            "value": "Another order"
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "ogma-order",
+            "op": "eq",
+            "value": "Another order"
+          }
+        ]
+      ],
+      "finding": "The block or its road overlaps a legal old growth management area set by an order this release does not transcribe. A legal OGMA is an objective an order establishes: a minister’s order under the Land Act for the purposes of the Forest and Range Practices Act, or an older order made under the Forest Practices Code. What may be cut or built in the OGMA, and any exception, is in that order’s own text, which decides; nothing here reads it.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Find the order the legal OGMA layer names as its enabling document, read its objectives for harvesting and roads in the OGMA, and record how the block meets them or move the boundary out of the OGMA."
         }
       ]
     },

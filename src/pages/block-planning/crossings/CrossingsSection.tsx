@@ -39,6 +39,7 @@ import { datingBracket, REPLACED_QUESTION } from './dating'
 export const CROSSING_STANDING_TONE: Record<CrossingStanding, BadgeTone> = {
   error: 'danger',
   raised: 'warning',
+  undated: 'warning',
   open: 'info',
   unreviewed: 'neutral',
   clear: 'neutral',

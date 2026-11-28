@@ -29,7 +29,7 @@
         "Federal land, including an Indian reserve",
         "Treaty settlement land"
       ],
-      "label": "What land is the block on? Crown land is land vested in the provincial government (the Land Act meaning, Forest Act §1); private land is land that is not Crown land. A reserve and treaty settlement land are asked apart: these packs do not assess them.",
+      "label": "What land is the block on? Crown land is land vested in the provincial government (the Land Act meaning), not including land owned by an agent of the government (Forest Act §1); private land is land that is not Crown land, so land a Crown agency owns is private land here. A reserve and treaty settlement land are asked apart: these packs do not assess them.",
       "sameAs": "bc.land-status:land"
     },
     {
@@ -233,10 +233,6 @@
       "unit": "%"
     }
   ],
-  "sourceFiles": [
-    "sources/bc/wlppr.json"
-  ],
-  "ruleFiles": [
-    "rules/bc/woodlot-practices.json"
-  ]
+  "sourceFiles": ["sources/bc/wlppr.json"],
+  "ruleFiles": ["rules/bc/woodlot-practices.json"]
 }

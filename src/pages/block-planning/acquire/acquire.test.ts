@@ -34,7 +34,7 @@ const library: Pack[] = Object.values(
   import.meta.glob('../../../../packages/legal-rules/packs/*.json', { eager: true, import: 'default' }),
 ).map(parsePack)
 const release = (key: string) => library.find((p) => releaseKey(p) === key)!
-const permits = release('bc.forest-permits@1.2.0')
+const permits = release('bc.forest-permits@1.3.0')
 const water = release('bc.water-crossings@2.0.0')
 const fpprCrossings = release('bc.fppr-crossings@1.0.0')
 const TODAY = '2026-11-27'

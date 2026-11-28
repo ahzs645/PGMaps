@@ -6,11 +6,11 @@
     "bc.private-managed-forest@1.0.0",
     "bc.mineral-tenure@1.0.0",
     "bc.fppr@1.3.0",
-    "bc.forest-permits@1.2.0",
+    "bc.forest-permits@1.3.0",
     "bc.forest-operations@1.0.0",
-    "bc.omineca.old-growth@1.1.0",
-    "bc.omineca.visual-quality@1.0.0",
-    "bc.mackenzie.biodiversity@1.0.0",
+    "bc.omineca.old-growth@1.2.0",
+    "bc.omineca.visual-quality@1.1.0",
+    "bc.mackenzie.biodiversity@1.1.0",
     "bc.block-crossings@1.0.0"
   ],
   "crossingReleases": [

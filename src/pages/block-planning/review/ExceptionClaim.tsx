@@ -1,10 +1,12 @@
 import { lazy, Suspense } from 'react'
 import { Badge, type BadgeTone } from '@/components/ui/badge'
 import { FORM_INPUT_CLASS, FormField, StyledSelect } from '@/components/ui/form-field'
+import { TextButton } from '@/components/ui/text-button'
 import { exceptionKey } from '@/lib/legal/ruleQuotes'
 import type { ExceptionStanding } from '../../../../packages/legal-rules/engine/evaluate'
 import type { Claim, Pack, Rule } from '../../../../packages/legal-rules/src/contract'
 import type { Finding } from './questions'
+import type { ExceptionSignal } from './tenureSignals'
 import { describeCheck, STANDING_WORDS } from './wording'
 
 const ProvisionLink = lazy(() =>
@@ -23,6 +25,22 @@ export const STANDING_TONE: Record<ExceptionStanding, BadgeTone> = {
 const OTHER = 'Other evidence'
 
 /**
+ * A public record's words added to a claim's evidence, under *Other evidence*: appended to what is
+ * there, never replacing it, and once only. The reviewer's click is the only way in.
+ */
+export function withSignalEvidence(claim: Claim, signal: ExceptionSignal): Claim {
+  const current = claim.evidence?.find((e) => e.label === OTHER)
+  if (current?.reference?.includes(signal.text)) return claim
+  const reference = [current?.reference, signal.text].filter(Boolean).join(' ')
+  const row = {
+    label: OTHER,
+    reference,
+    ...(current?.date ? { date: current.date } : signal.date ? { date: signal.date } : {}),
+  }
+  return { ...claim, evidence: [...(claim.evidence ?? []).filter((e) => e.label !== OTHER), row] }
+}
+
+/**
  * On a raised finding: the exceptions the law makes to its rule, the one the reviewer relies on,
  * and their rationale, evidence and (for an exception that needs a decision) the decision. The
  * finding stays raised; the evaluator says where the claim stands.
@@ -31,17 +49,27 @@ export function ExceptionClaim({
   pack,
   rule,
   finding,
+  signals = [],
   onChange,
 }: {
   pack: Pack
   rule: Rule
   finding: Finding
+  /** Public records bearing on an exception, read on the reviewer's click (`tenureSignals.ts`). */
+  signals?: ExceptionSignal[]
   onChange: (claim: Claim | undefined) => void
 }) {
   const options = rule.exceptions ?? []
   if (!options.length || finding.status !== 'review_required') return null
   const chosen = 'exception' in finding ? finding.exception : undefined
   const claim = chosen?.claim
+  const offered = signals.filter((s) => s.pack === pack.id && options.some((x) => x.id === s.exception))
+  // Relying on the exception a record bears on, with the record's words as evidence: one click.
+  const relyOnSignal = (signal: ExceptionSignal) => {
+    const base: Claim =
+      claim && claim.exception === signal.exception ? claim : { rule: rule.id, exception: signal.exception }
+    onChange(withSignalEvidence(base, signal))
+  }
   const rows = chosen ? [...(chosen.evidence ?? []), OTHER] : []
   const evidenceOf = (label: string) => claim?.evidence?.find((e) => e.label === label)
   const update = (patch: Partial<Claim>) => claim && onChange({ ...claim, ...patch })
@@ -79,6 +107,26 @@ export function ExceptionClaim({
           onValueChange={choose}
         />
       </FormField>
+      {offered.length > 0 && (
+        <div className="space-y-1 rounded border border-border p-2" data-testid="exception-signals">
+          <p className="font-medium">Public records that bear on an exception</p>
+          <p className="text-muted-foreground">
+            What the record says, never why. It is not an answer: relying on the exception is your claim.
+          </p>
+          <ul className="space-y-1">
+            {offered.map((s) => (
+              <li key={`${s.exception}|${s.record}|${s.text}`} className="space-y-0.5">
+                <span className="block">
+                  <span className="font-medium">{options.find((x) => x.id === s.exception)!.label}:</span> {s.text}
+                </span>
+                <TextButton onClick={() => relyOnSignal(s)}>
+                  {claim?.exception === s.exception ? 'Add to the evidence' : 'Rely on it, with this as evidence'}
+                </TextButton>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       {chosen && claim && (
         <div className="space-y-2 rounded border border-border bg-card p-2">
           <p className="flex flex-wrap items-center gap-2">

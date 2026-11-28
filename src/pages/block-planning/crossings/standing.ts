@@ -16,15 +16,18 @@ import { questions, type Finding } from '../review/questions'
 import { crossingCurrent, crossingsOf, type CrossingRecord } from './record'
 
 /**
- * `raised`: a rule needs review; `open`: a rule waits on an answer and none is raised; `clear`:
- * every rule is settled; `unreviewed`: no release is chosen; `error`: the case could not be evaluated.
+ * `raised`: a rule needs review; `undated`: none is raised, but a release does not cover the review's
+ * date, so its rules were not assessed; `open`: a rule waits on an answer and none is raised;
+ * `clear`: every rule is settled; `unreviewed`: no release is chosen; `error`: the case could not be
+ * evaluated. A crossing whose releases do not cover the date is never `clear`.
  */
-export type CrossingStanding = 'error' | 'raised' | 'open' | 'unreviewed' | 'clear'
+export type CrossingStanding = 'error' | 'raised' | 'undated' | 'open' | 'unreviewed' | 'clear'
 /** Worst first. */
-export const STANDING_ORDER: readonly CrossingStanding[] = ['error', 'raised', 'open', 'unreviewed', 'clear']
+export const STANDING_ORDER: readonly CrossingStanding[] = ['error', 'raised', 'undated', 'open', 'unreviewed', 'clear']
 export const CROSSING_STANDING_WORDS: Record<CrossingStanding, string> = {
   error: 'Could not be evaluated',
   raised: 'Needs review',
+  undated: 'Not assessed on this date',
   open: 'Needs an answer',
   unreviewed: 'No release chosen',
   clear: 'Nothing raised',
@@ -91,13 +94,16 @@ export function assessCrossing(plan: Plan, record: CrossingRecord, library: Pack
     0,
   )
   const waiting = report.releases.some((release) => release.findings.some((f) => f.status === 'missing_evidence'))
+  const undated = report.releases.some((release) => release.findings.some((f) => f.status === 'outside_source_window'))
   const standing: CrossingStanding = !packs.length
     ? 'unreviewed'
     : raised.length
       ? 'raised'
-      : waiting
-        ? 'open'
-        : 'clear'
+      : undated
+        ? 'undated'
+        : waiting
+          ? 'open'
+          : 'clear'
   return {
     ...base,
     standing,
