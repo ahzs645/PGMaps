@@ -1,0 +1,180 @@
+[
+  {
+    "id": "surface-rights",
+    "title": "The recorded holder’s surface rights over the block",
+    "source": "mineral-tenure-act",
+    "provision": "14(1), 16(3)",
+    "scope": [
+      [
+        {
+          "fact": "mineral-title",
+          "op": "eq",
+          "value": true
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "mineral-title",
+          "op": "eq",
+          "value": true
+        }
+      ]
+    ],
+    "finding": "The recorded holder may use, enter and occupy the surface of its claim or lease for exploring for, developing and producing minerals. A disposition of surface rights on Crown land made while a valid mineral title is there does not diminish the holder’s rights except as an order of the chief gold commissioner, the minister or the Surface Rights Board, or a quit claim agreement, determines. Whether harvesting the block or building its road is such a disposition the Act does not say; this is a reading of its text, and no court decision was read.",
+    "actions": [
+      {
+        "kind": "review",
+        "description": "Record the title from Mineral Titles Online, and ask the district and the Mineral Titles Branch whether the harvest or road interferes with the holder’s rights before relying on the block."
+      }
+    ]
+  },
+  {
+    "id": "holder-permit",
+    "title": "No mining work before the Mines Act permit",
+    "source": "mineral-tenure-act",
+    "provision": "14(2)",
+    "scope": [
+      [
+        {
+          "fact": "mineral-title",
+          "op": "eq",
+          "value": true
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "holder-cuts",
+          "op": "eq",
+          "value": true
+        }
+      ]
+    ],
+    "finding": "The recorded holder may do no mining activity until it receives the permit, if any, that Mines Act §10 requires: clearing the block for its own mining work waits on that permit.",
+    "actions": [
+      {
+        "kind": "obtain-approval",
+        "description": "Find the holder’s Mines Act permit, or the exemption that means none is needed, before the clearing."
+      }
+    ]
+  },
+  {
+    "id": "holder-timber",
+    "title": "The holder cuts Crown timber only under a Forest Act licence or permit",
+    "source": "mineral-tenure-act",
+    "provision": "14(3)",
+    "scope": [
+      [
+        {
+          "fact": "mineral-title",
+          "op": "eq",
+          "value": true
+        },
+        {
+          "fact": "in-production",
+          "op": "eq",
+          "value": false
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "holder-cuts",
+          "op": "eq",
+          "value": true
+        }
+      ]
+    ],
+    "finding": "A recorded holder whose title is not in production does not own the timber: on request it is issued a free use permit or an occupant licence to cut under the Forest Act, as the government chooses. A free use permit for a mineral title is for at most 5 years and 50 m³, with no stumpage; an occupant licence to cut requires stumpage and waste assessments when it authorizes removing the timber.",
+    "actions": [
+      {
+        "kind": "obtain-approval",
+        "description": "Hold the free use permit or occupant licence to cut, with its terms, before cutting."
+      }
+    ]
+  },
+  {
+    "id": "holder-timber-production",
+    "title": "A title in production cuts under an occupant licence to cut",
+    "source": "mineral-tenure-act",
+    "provision": "14(4)",
+    "scope": [
+      [
+        {
+          "fact": "mineral-title",
+          "op": "eq",
+          "value": true
+        },
+        {
+          "fact": "in-production",
+          "op": "eq",
+          "value": true
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "holder-cuts",
+          "op": "eq",
+          "value": true
+        }
+      ]
+    ],
+    "finding": "The recorded holder of a title in production, or being prepared for it, is issued on request an occupant licence to cut under the Forest Act, on the issuing authority’s terms; it pays stumpage and waste assessments for Crown timber it removes.",
+    "actions": [
+      {
+        "kind": "obtain-approval",
+        "description": "Hold the occupant licence to cut, with its terms, before cutting."
+      }
+    ]
+  },
+  {
+    "id": "pit-permit",
+    "title": "A pit or quarry for road gravel or rock is a mine",
+    "source": "mines-act",
+    "provision": "10(1)",
+    "when": [
+      [
+        {
+          "fact": "pit",
+          "op": "eq",
+          "value": true
+        }
+      ]
+    ],
+    "finding": "The Mines Act counts a place dug to produce rock, sand or gravel as a mine, and producing them as mining activity, with no exception for a forest road. Before work in, on or about it, the person must hold a permit from the chief permitting officer, filing a plan of the work and a program to protect and reclaim the land and watercourses, unless a regulation exempts the class of person or work or the chief permitting officer exempts the person in writing. The regulations and the Health, Safety and Reclamation Code are not stored, so which pits are exempt is not assessed here.",
+    "actions": [
+      {
+        "kind": "obtain-approval",
+        "description": "Hold the Mines Act permit for the pit or quarry, or record the regulation or written exemption that means none is needed."
+      }
+    ],
+    "exceptions": [
+      {
+        "id": "regulation",
+        "label": "A regulation exempts the class of person, or the class of work, from holding a permit, and the chief permitting officer has not required one (§10(1.1)–(1.2))",
+        "source": "mines-act",
+        "provision": "10(1.1)",
+        "kind": "by-law",
+        "evidence": [
+          "The regulation and the class it exempts",
+          "That the chief permitting officer has not required a permit"
+        ]
+      },
+      {
+        "id": "officer",
+        "label": "The chief permitting officer exempted the person in writing because of the nature of the work (§10(2))",
+        "source": "mines-act",
+        "provision": "10(2)",
+        "kind": "decision",
+        "decidedBy": "The chief permitting officer",
+        "evidence": ["The written exemption and its terms"]
+      }
+    ]
+  }
+]

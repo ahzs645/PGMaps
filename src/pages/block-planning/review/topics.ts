@@ -83,6 +83,34 @@ const TOPICS: Record<string, TopicDef[]> = {
       rules: ['crown-timber', 'private-boundaries', 'timber-mark', 'scaling'],
     },
   ],
+  'bc.private-managed-forest': [
+    {
+      id: 'roads',
+      label: 'Roads and logging trails (Council Regulation §§13, 14, 16, 17)',
+      sections: ['13', '14', '16', '17'],
+    },
+    { id: 'water', label: 'Sediment, drinking water and intakes (§§14.1, 15, 20)', sections: ['14.1', '15', '20'] },
+    {
+      id: 'retention',
+      label: 'Trees and understory kept beside classed streams (§§27–30)',
+      sections: ['27', '28', '29', '30'],
+    },
+    { id: 'reforestation', label: 'Reforestation (§31)', sections: ['31'] },
+    {
+      id: 'wildlife',
+      label: 'Critical wildlife habitat (PMFL Regulation §§5, 7, 8)',
+      sections: [],
+      rules: ['critical-habitat', 'possible-habitat'],
+    },
+  ],
+  'bc.mineral-tenure': [
+    {
+      id: 'title',
+      label: 'A mineral title over the block (Mineral Tenure Act §§14, 16)',
+      sections: ['14', '16'],
+    },
+    { id: 'pit', label: 'Pits and quarries for road gravel and rock (Mines Act §10)', sections: ['10'] },
+  ],
   'bc.forest-operations': [
     {
       id: 'fop',

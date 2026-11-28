@@ -2362,6 +2362,601 @@
           "quote": "The minister may exempt timber or a person from subsection (1) or (4)."
         }
       ]
+    },
+    "bc.private-managed-forest": {
+      "roads-trails-minimum": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "13",
+          "quote": "restrict the amount of productive forest land within the cutblock that is converted to roads to the minimum necessary for the safe and efficient conduct of timber harvesting operations"
+        },
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "14",
+          "quote": "must rehabilitate the logging trails to the extent necessary to meet any reforestation requirements under section 31 for the cutblock"
+        }
+      ],
+      "roads-trails-minimum#government-act": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "3",
+          "quote": "cannot be met due to the actions of a person who has been authorized to act by the government"
+        }
+      ],
+      "roads-trails-minimum#workers-compensation": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "3",
+          "quote": "to the extent necessary to conform to the requirements of the Workers Compensation Act or a regulation made under that Act"
+        }
+      ],
+      "roads-trails-minimum#prevent-damage": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "3",
+          "quote": "prevent damage to the environment from occurring or continuing, or"
+        }
+      ],
+      "road-near-stream": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "16",
+          "quote": "must not construct a road within"
+        },
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "16",
+          "quote": "30 m of a class A stream"
+        }
+      ],
+      "road-near-stream#more-sediment": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "16",
+          "quote": "would create a higher risk of sediment delivery to the stream than not complying"
+        }
+      ],
+      "road-near-stream#no-option": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "16",
+          "quote": "there is no other practicable option for locating the road"
+        }
+      ],
+      "road-near-stream#crossing": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "16",
+          "quote": "the road construction is part of a stream crossing"
+        }
+      ],
+      "road-near-stream#government-act": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "3",
+          "quote": "cannot be met due to the actions of a person who has been authorized to act by the government"
+        }
+      ],
+      "road-near-stream#workers-compensation": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "3",
+          "quote": "to the extent necessary to conform to the requirements of the Workers Compensation Act or a regulation made under that Act"
+        }
+      ],
+      "road-near-stream#prevent-damage": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "3",
+          "quote": "prevent damage to the environment from occurring or continuing, or"
+        }
+      ],
+      "stream-crossing": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "17",
+          "quote": "protects the stream channel and stream bank immediately above and below the stream crossing"
+        },
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "2",
+          "quote": "Nothing in this regulation authorizes an owner or a contractor, employee or agent of the owner of private managed forest land to make changes in and about a stream"
+        }
+      ],
+      "stream-crossing#government-act": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "3",
+          "quote": "cannot be met due to the actions of a person who has been authorized to act by the government"
+        }
+      ],
+      "stream-crossing#workers-compensation": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "3",
+          "quote": "to the extent necessary to conform to the requirements of the Workers Compensation Act or a regulation made under that Act"
+        }
+      ],
+      "stream-crossing#prevent-damage": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "3",
+          "quote": "prevent damage to the environment from occurring or continuing, or"
+        }
+      ],
+      "sediment": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "15",
+          "quote": "must not cause sediment or other material to be transported to, or deposited in, a stream if that sediment or material will have a material adverse effect on"
+        }
+      ],
+      "sediment#government-act": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "3",
+          "quote": "cannot be met due to the actions of a person who has been authorized to act by the government"
+        }
+      ],
+      "sediment#workers-compensation": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "3",
+          "quote": "to the extent necessary to conform to the requirements of the Workers Compensation Act or a regulation made under that Act"
+        }
+      ],
+      "sediment#prevent-damage": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "3",
+          "quote": "prevent damage to the environment from occurring or continuing, or"
+        }
+      ],
+      "drinking-water": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "14.1",
+          "quote": "must not cause a material adverse effect on the quality of drinking water that may affect human health at the point of diversion of a drinking water intake"
+        }
+      ],
+      "drinking-water#built-without-consent": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "14.1",
+          "quote": "has been constructed on the private managed forest land of the owner without the owner's written consent"
+        }
+      ],
+      "drinking-water#government-act": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "3",
+          "quote": "cannot be met due to the actions of a person who has been authorized to act by the government"
+        }
+      ],
+      "drinking-water#workers-compensation": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "3",
+          "quote": "to the extent necessary to conform to the requirements of the Workers Compensation Act or a regulation made under that Act"
+        }
+      ],
+      "drinking-water#prevent-damage": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "3",
+          "quote": "prevent damage to the environment from occurring or continuing, or"
+        }
+      ],
+      "intake-road": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "20",
+          "quote": "must not construct a road within a 100 m radius upslope of a licensed waterworks intake"
+        }
+      ],
+      "intake-road#no-more-sediment": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "20",
+          "quote": "the road construction will not increase sediment delivery to the licensed waterworks intake"
+        }
+      ],
+      "intake-road#licence-holder": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "20",
+          "quote": "obtains prior approval from the holder of the licence for that licensed waterworks intake"
+        }
+      ],
+      "intake-road#government-act": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "3",
+          "quote": "cannot be met due to the actions of a person who has been authorized to act by the government"
+        }
+      ],
+      "intake-road#workers-compensation": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "3",
+          "quote": "to the extent necessary to conform to the requirements of the Workers Compensation Act or a regulation made under that Act"
+        }
+      ],
+      "intake-road#prevent-damage": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "3",
+          "quote": "prevent damage to the environment from occurring or continuing, or"
+        }
+      ],
+      "retain-class-a": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "27",
+          "quote": "on each side of every 100 m of that stream that is adjacent to the cutblock, retain at least 30 trees"
+        },
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "27",
+          "quote": "may remove a tree that is otherwise required to be retained under subsections (1) to (4) only if the tree falls by natural causes outside the stream channel"
+        }
+      ],
+      "retain-class-a#government-act": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "3",
+          "quote": "cannot be met due to the actions of a person who has been authorized to act by the government"
+        }
+      ],
+      "retain-class-a#workers-compensation": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "3",
+          "quote": "to the extent necessary to conform to the requirements of the Workers Compensation Act or a regulation made under that Act"
+        }
+      ],
+      "retain-class-a#prevent-damage": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "3",
+          "quote": "prevent damage to the environment from occurring or continuing, or"
+        }
+      ],
+      "retain-class-b": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "28",
+          "quote": "on each side of every 100 m of that stream that is adjacent to the cutblock, retain at least 25 trees"
+        }
+      ],
+      "retain-class-b#government-act": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "3",
+          "quote": "cannot be met due to the actions of a person who has been authorized to act by the government"
+        }
+      ],
+      "retain-class-b#workers-compensation": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "3",
+          "quote": "to the extent necessary to conform to the requirements of the Workers Compensation Act or a regulation made under that Act"
+        }
+      ],
+      "retain-class-b#prevent-damage": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "3",
+          "quote": "prevent damage to the environment from occurring or continuing, or"
+        }
+      ],
+      "retain-class-c": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "29",
+          "quote": "on each side of every 100 m of the stream that is adjacent to the cutblock, retain at least 15 trees"
+        },
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "29",
+          "quote": "unless the owner or a contractor, employee or agent of the owner selects and retains in its place another tree that is 20 cm or greater in diameter"
+        }
+      ],
+      "retain-class-c#government-act": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "3",
+          "quote": "cannot be met due to the actions of a person who has been authorized to act by the government"
+        }
+      ],
+      "retain-class-c#workers-compensation": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "3",
+          "quote": "to the extent necessary to conform to the requirements of the Workers Compensation Act or a regulation made under that Act"
+        }
+      ],
+      "retain-class-c#prevent-damage": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "3",
+          "quote": "prevent damage to the environment from occurring or continuing, or"
+        }
+      ],
+      "understory": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "30",
+          "quote": "must retain all non-commercial trees and understory vegetation within"
+        }
+      ],
+      "understory#reforestation": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "30",
+          "quote": "is necessary to enable the owner or a contractor, employee or agent of the owner to comply with section 31"
+        }
+      ],
+      "understory#road-or-crossing": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "30",
+          "quote": "is associated with a road constructed under section 16 or 17"
+        }
+      ],
+      "understory#no-harm": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "30",
+          "quote": "will not cause a material adverse effect on fish habitat or water that is diverted by a licensed waterworks intake"
+        }
+      ],
+      "understory#government-act": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "3",
+          "quote": "cannot be met due to the actions of a person who has been authorized to act by the government"
+        }
+      ],
+      "understory#workers-compensation": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "3",
+          "quote": "to the extent necessary to conform to the requirements of the Workers Compensation Act or a regulation made under that Act"
+        }
+      ],
+      "understory#prevent-damage": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "3",
+          "quote": "prevent damage to the environment from occurring or continuing, or"
+        }
+      ],
+      "reforest-interior": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "31",
+          "quote": "restocking the disturbed area within 5 years of the completion of timber harvesting activity on the cutblock"
+        },
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "31",
+          "quote": "600 crop trees per hectare reasonably well distributed across the disturbed area if the stand is in the Interior"
+        },
+        {
+          "source": "bc.pmfl-council-matters-regulation",
+          "provision": "1",
+          "quote": "Interior means that geographic area of British Columbia that is not the Coast"
+        }
+      ],
+      "reforest-interior#under-1-ha": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "31",
+          "quote": "is a contiguous area that is under 1 ha in size"
+        }
+      ],
+      "reforest-interior#already-regenerated": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "31",
+          "quote": "the trees remaining on the area meet the definition of a successfully regenerated stand"
+        }
+      ],
+      "reforest-interior#built-on": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "31",
+          "quote": "becomes occupied by buildings or other structures or installations"
+        }
+      ],
+      "reforest-interior#government-act": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "3",
+          "quote": "cannot be met due to the actions of a person who has been authorized to act by the government"
+        }
+      ],
+      "reforest-interior#workers-compensation": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "3",
+          "quote": "to the extent necessary to conform to the requirements of the Workers Compensation Act or a regulation made under that Act"
+        }
+      ],
+      "reforest-interior#prevent-damage": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "3",
+          "quote": "prevent damage to the environment from occurring or continuing, or"
+        }
+      ],
+      "reforest-coast": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "31",
+          "quote": "restocking the disturbed area within 5 years of the completion of timber harvesting activity on the cutblock"
+        },
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "31",
+          "quote": "400 crop trees per hectare reasonably well distributed across the disturbed area if the stand is on the Coast"
+        },
+        {
+          "source": "bc.pmfl-council-matters-regulation",
+          "provision": "1",
+          "quote": "Interior means that geographic area of British Columbia that is not the Coast"
+        }
+      ],
+      "reforest-coast#under-1-ha": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "31",
+          "quote": "is a contiguous area that is under 1 ha in size"
+        }
+      ],
+      "reforest-coast#already-regenerated": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "31",
+          "quote": "the trees remaining on the area meet the definition of a successfully regenerated stand"
+        }
+      ],
+      "reforest-coast#built-on": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "31",
+          "quote": "becomes occupied by buildings or other structures or installations"
+        }
+      ],
+      "reforest-coast#government-act": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "3",
+          "quote": "cannot be met due to the actions of a person who has been authorized to act by the government"
+        }
+      ],
+      "reforest-coast#workers-compensation": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "3",
+          "quote": "to the extent necessary to conform to the requirements of the Workers Compensation Act or a regulation made under that Act"
+        }
+      ],
+      "reforest-coast#prevent-damage": [
+        {
+          "source": "bc.pmfl-council-regulation",
+          "provision": "3",
+          "quote": "prevent damage to the environment from occurring or continuing, or"
+        }
+      ],
+      "critical-habitat": [
+        {
+          "source": "bc.pmfl-regulation",
+          "provision": "5",
+          "quote": "an owner must carry out any timber harvesting and related activities, and any road construction, in accordance with the requirements of the notice given or amended under section 7"
+        },
+        {
+          "source": "bc.pmfl-regulation",
+          "provision": "7",
+          "quote": "must not be subject to a period of modified operations exceeding one year from the date the notice is received by the owner"
+        }
+      ],
+      "possible-habitat": [
+        {
+          "source": "bc.pmfl-regulation",
+          "provision": "8",
+          "quote": "promptly notify the wildlife minister, and"
+        }
+      ],
+      "possible-habitat#relieved": [
+        {
+          "source": "bc.pmfl-regulation",
+          "provision": "8",
+          "quote": "The wildlife minister may relieve the owner of a requirement to notify the wildlife minister under subsection (2) (a) with respect to one or more species at risk."
+        }
+      ]
+    },
+    "bc.mineral-tenure": {
+      "surface-rights": [
+        {
+          "source": "bc.mineral-tenure-act",
+          "provision": "14",
+          "quote": "a recorded holder may use, enter and occupy the surface of a claim or lease for the exploration and development or production of minerals or placer minerals"
+        },
+        {
+          "source": "bc.mineral-tenure-act",
+          "provision": "16",
+          "quote": "the disposition of surface rights does not diminish the rights of the recorded holder except to the extent otherwise determined"
+        }
+      ],
+      "holder-permit": [
+        {
+          "source": "bc.mineral-tenure-act",
+          "provision": "14",
+          "quote": "no mining activity may be done by the recorded holder until the recorded holder receives the permit, if any, required under section 10 of the Mines Act"
+        }
+      ],
+      "holder-timber": [
+        {
+          "source": "bc.mineral-tenure-act",
+          "provision": "14",
+          "quote": "must on request be issued either a free use permit or an occupant licence to cut under that Act at the option of the government"
+        },
+        {
+          "source": "bc.forest-act",
+          "provision": "48",
+          "quote": "a holder of a mineral title under the Mineral Tenure Act not in production authorizing the holder to cut timber"
+        },
+        {
+          "source": "bc.forest-act",
+          "provision": "49",
+          "quote": "must be limited to a volume not exceeding 50 m3"
+        }
+      ],
+      "holder-timber-production": [
+        {
+          "source": "bc.mineral-tenure-act",
+          "provision": "14",
+          "quote": "must on request be issued an occupant licence to cut under the Forest Act, subject to terms and conditions set by the issuing authority"
+        },
+        {
+          "source": "bc.forest-act",
+          "provision": "47.5",
+          "quote": "stumpage under Part 7, and"
+        }
+      ],
+      "pit-permit": [
+        {
+          "source": "bc.mines-act",
+          "provision": "10",
+          "quote": "Before starting any work in, on or about a mine, the owner, agent, manager or any other person must hold a permit issued by the chief permitting officer"
+        },
+        {
+          "source": "bc.mines-act",
+          "provision": "1",
+          "quote": "a place where mechanical disturbance of the ground or any excavation is made to explore for or to produce coal, mineral bearing substances, placer minerals, rock, limestone, earth, clay, sand or gravel"
+        },
+        {
+          "source": "bc.mines-act",
+          "provision": "1",
+          "quote": "the production of a mineral, a placer mineral, coal, sand, gravel or rock"
+        }
+      ],
+      "pit-permit#regulation": [
+        {
+          "source": "bc.mines-act",
+          "provision": "10",
+          "quote": "by regulation and on any terms and conditions considered necessary or advisable, may exempt"
+        }
+      ],
+      "pit-permit#officer": [
+        {
+          "source": "bc.mines-act",
+          "provision": "10",
+          "quote": "may exempt a person from the requirement under subsection (1) to hold a permit if"
+        }
+      ]
     }
   }
 }

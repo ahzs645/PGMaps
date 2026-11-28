@@ -1,0 +1,1400 @@
+{
+  "format": "pgmaps-legal-pack/v1",
+  "id": "bc.private-managed-forest",
+  "version": "1.0.0",
+  "title": "BC private managed forest land",
+  "description": "The practice requirements for a block on private managed forest land outside a tree farm licence, woodlot licence and community forest agreement area, where the Private Managed Forest Land Act applies and FRPA’s forest practices do not: roads and trails held to the minimum, roads kept back from classed streams, crossings, sediment, drinking water and licensed intakes, tree and understory retention by stream class, reforestation by Coast and Interior density, and critical wildlife habitat. Stream classes are the Council Regulation’s Schedule, by channel width, for fish streams and streams above a licensed waterworks intake; the reviewer classes each stream. Every rule applies only when the land status review answers that the land is private managed forest land.",
+  "relatedPacks": [
+    {
+      "id": "bc.land-status",
+      "relationship": "Its managed-forest-land rule says when this pack’s rules are the block’s; the two questions are asked once and shared (sameAs)."
+    }
+  ],
+  "coverage": {
+    "from": "2026-11-17",
+    "through": "2026-11-27"
+  },
+  "facts": [
+    {
+      "id": "land",
+      "type": "choice",
+      "choices": [
+        "Crown land",
+        "Private land",
+        "Both Crown and private land",
+        "Federal land, including an Indian reserve",
+        "Treaty settlement land"
+      ],
+      "label": "What land is the block on? Crown land is land vested in the provincial government (the Land Act meaning, Forest Act §1); private land is land that is not Crown land. A reserve and treaty settlement land are asked apart: these packs do not assess them.",
+      "sameAs": "bc.land-status:land"
+    },
+    {
+      "id": "managed-forest",
+      "type": "boolean",
+      "sameAs": "bc.land-status:managed-forest",
+      "label": "Is the block’s private land private managed forest land: land under a management commitment and classified as managed forest land under the Assessment Act (PMFLA §1), or land classified as managed forest land when the Act came into force and deemed so without a commitment (§45)?"
+    },
+    {
+      "id": "licence-area",
+      "type": "choice",
+      "sameAs": "bc.land-status:licence-area",
+      "choices": [
+        "A tree farm licence",
+        "A community forest agreement",
+        "A woodlot licence",
+        "A First Nations woodland licence",
+        "None of these"
+      ],
+      "label": "Is the block in the area of an area-based licence (Forest Act §1), on its Crown land or on private land the licence includes?"
+    },
+    {
+      "id": "region",
+      "type": "choice",
+      "choices": [
+        "The Interior",
+        "The Coast"
+      ],
+      "label": "Is the land on the Coast, the area of the former Coast Forest Region, or in the Interior, the rest of the province (Council Matters Regulation §1)?"
+    },
+    {
+      "id": "class-a",
+      "type": "boolean",
+      "label": "Is the cutblock beside a class A stream: a fish stream, or a stream above a licensed waterworks intake, with a channel 10 m wide or wider (Council Regulation Schedule §1(1)(a))?"
+    },
+    {
+      "id": "class-b",
+      "type": "boolean",
+      "label": "Is the cutblock beside a class B stream: a fish stream, or a stream above a licensed waterworks intake, with a channel 3 m wide or wider but narrower than 10 m (Schedule §1(1)(b))?"
+    },
+    {
+      "id": "class-c",
+      "type": "boolean",
+      "label": "Is the cutblock beside a class C stream: a fish stream, or a stream above a licensed waterworks intake, with a channel 1.5 m wide or wider but narrower than 3 m (Schedule §1(1)(c))?"
+    },
+    {
+      "id": "class-c-steep",
+      "type": "boolean",
+      "label": "Is that class C stream’s gradient more than 8% (Council Regulation §29(3)–(4))?"
+    },
+    {
+      "id": "class-d-e",
+      "type": "boolean",
+      "label": "Is the cutblock beside a class D stream (a fish stream, or one above a licensed waterworks intake, narrower than 1.5 m) or a class E stream (1.5 m wide or wider and flowing directly into a class A, B, C or D stream) (Schedule §1(1)(d), (2))?"
+    },
+    {
+      "id": "road-near-stream",
+      "type": "boolean",
+      "label": "Will a road be built within 30 m of a class A or B stream, or within 10 m of a class C, D or E stream, slope distance (Council Regulation §16)?"
+    },
+    {
+      "id": "crossing",
+      "type": "boolean",
+      "label": "Will a road or logging trail cross a stream with a bridge, culvert or ford (Council Regulation §17)?"
+    },
+    {
+      "id": "drinking-intake",
+      "type": "boolean",
+      "label": "Is there a drinking water intake, licensed for a domestic or industrial purpose and drunk by people, whose water the block’s harvesting, roads or silviculture could reach (Council Regulation §14.1)?"
+    },
+    {
+      "id": "intake-upslope",
+      "type": "boolean",
+      "label": "Will a road be built within 100 m upslope, slope distance, of a licensed waterworks intake (Council Regulation §20(2))?"
+    },
+    {
+      "id": "wildlife-notice",
+      "type": "boolean",
+      "label": "Has the wildlife minister given the owner notice establishing critical wildlife habitat on the land, a notice that names the area where road building and harvesting must be modified (PMFL Regulation §§5, 7)?"
+    },
+    {
+      "id": "possible-habitat",
+      "type": "boolean",
+      "label": "Does the owner know that the land may hold habitat for a species on the ministry’s published list of species at risk without enough habitat on Crown land in the ecoregion (PMFL Regulation §8)?"
+    }
+  ],
+  "parameters": [],
+  "sources": [
+    {
+      "id": "pmfla",
+      "title": "Private Managed Forest Land Act, SBC 2003 c. 80",
+      "url": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/03080_01",
+      "asOf": "2026-11-27"
+    },
+    {
+      "id": "pmfl-council-regulation",
+      "title": "Private Managed Forest Land Council Regulation, BC Reg 182/2007",
+      "url": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/182_2007",
+      "asOf": "2026-11-27"
+    },
+    {
+      "id": "pmfl-regulation",
+      "title": "Private Managed Forest Land Regulation, BC Reg 371/2004",
+      "url": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/371_2004",
+      "asOf": "2026-11-27"
+    },
+    {
+      "id": "pmfl-council-matters-regulation",
+      "title": "Private Managed Forest Land Council Matters Regulation, BC Reg 372/2004",
+      "url": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/372_2004",
+      "asOf": "2026-11-27"
+    }
+  ],
+  "rules": [
+    {
+      "id": "roads-trails-minimum",
+      "title": "Roads and logging trails held to the minimum",
+      "source": "pmfl-council-regulation",
+      "provision": "13, 14",
+      "when": [
+        [
+          {
+            "fact": "managed-forest",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "finding": "Productive forest land in the cutblock converted to roads, and to logging trails, must be held to the minimum necessary for safe and efficient harvesting, and logging trails rehabilitated as far as reforestation needs, unless a trail is expected to serve ground beyond the cutblock. The regulation states no figure: the road area the planner measures is evidence for the reviewer’s judgement, never a pass or fail.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Compare the block’s road and trail area with what safe and efficient harvesting needs, and plan the trails’ rehabilitation."
+        }
+      ],
+      "scope": [
+        [
+          {
+            "fact": "land",
+            "op": "in",
+            "value": [
+              "Private land",
+              "Both Crown and private land"
+            ]
+          },
+          {
+            "fact": "managed-forest",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "licence-area",
+            "op": "in",
+            "value": [
+              "A First Nations woodland licence",
+              "None of these"
+            ]
+          }
+        ]
+      ],
+      "exceptions": [
+        {
+          "id": "government-act",
+          "label": "The requirement cannot be met because of what a person the government authorized to act did (§3(1))",
+          "source": "pmfl-council-regulation",
+          "provision": "3(1)",
+          "kind": "by-law",
+          "evidence": [
+            "The government authorization and what was done under it"
+          ]
+        },
+        {
+          "id": "workers-compensation",
+          "label": "Only to the extent needed to conform to the Workers Compensation Act or its regulations (§3(2))",
+          "source": "pmfl-council-regulation",
+          "provision": "3(2)",
+          "kind": "by-law",
+          "evidence": [
+            "The safety requirement and why the practice could not also be met"
+          ]
+        },
+        {
+          "id": "prevent-damage",
+          "label": "Only to the extent needed to prevent damage to the environment from occurring or continuing, or to protect the public’s safety (§3(3))",
+          "source": "pmfl-council-regulation",
+          "provision": "3(3)",
+          "kind": "by-law",
+          "evidence": [
+            "The damage or hazard, and why departing from the requirement was needed"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "road-near-stream",
+      "title": "No road within 30 m of a class A or B stream, or 10 m of a class C, D or E stream",
+      "source": "pmfl-council-regulation",
+      "provision": "16",
+      "when": [
+        [
+          {
+            "fact": "road-near-stream",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "finding": "A road may not be built within 30 m (slope distance) of a class A or B stream, or within 10 m of a class C, D or E stream, unless keeping the distance would risk more sediment reaching the stream, there is no other practicable place for the road, or the road is part of a stream crossing.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Move the road out of the distance, or record which of §16(f)–(h) applies and why."
+        }
+      ],
+      "exceptions": [
+        {
+          "id": "more-sediment",
+          "label": "Keeping the distance would create a higher risk of sediment reaching the stream than not keeping it (§16(f))",
+          "source": "pmfl-council-regulation",
+          "provision": "16(f)",
+          "kind": "by-law",
+          "evidence": [
+            "The comparison of sediment risk on the two locations"
+          ]
+        },
+        {
+          "id": "no-option",
+          "label": "There is no other practicable place for the road (§16(g))",
+          "source": "pmfl-council-regulation",
+          "provision": "16(g)",
+          "kind": "by-law",
+          "evidence": [
+            "The locations considered and why each is not practicable"
+          ]
+        },
+        {
+          "id": "crossing",
+          "label": "The road construction is part of a stream crossing (§16(h))",
+          "source": "pmfl-council-regulation",
+          "provision": "16(h)",
+          "kind": "by-law",
+          "evidence": [
+            "The crossing and the length of road its approaches take"
+          ]
+        },
+        {
+          "id": "government-act",
+          "label": "The requirement cannot be met because of what a person the government authorized to act did (§3(1))",
+          "source": "pmfl-council-regulation",
+          "provision": "3(1)",
+          "kind": "by-law",
+          "evidence": [
+            "The government authorization and what was done under it"
+          ]
+        },
+        {
+          "id": "workers-compensation",
+          "label": "Only to the extent needed to conform to the Workers Compensation Act or its regulations (§3(2))",
+          "source": "pmfl-council-regulation",
+          "provision": "3(2)",
+          "kind": "by-law",
+          "evidence": [
+            "The safety requirement and why the practice could not also be met"
+          ]
+        },
+        {
+          "id": "prevent-damage",
+          "label": "Only to the extent needed to prevent damage to the environment from occurring or continuing, or to protect the public’s safety (§3(3))",
+          "source": "pmfl-council-regulation",
+          "provision": "3(3)",
+          "kind": "by-law",
+          "evidence": [
+            "The damage or hazard, and why departing from the requirement was needed"
+          ]
+        }
+      ],
+      "scope": [
+        [
+          {
+            "fact": "land",
+            "op": "in",
+            "value": [
+              "Private land",
+              "Both Crown and private land"
+            ]
+          },
+          {
+            "fact": "managed-forest",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "licence-area",
+            "op": "in",
+            "value": [
+              "A First Nations woodland licence",
+              "None of these"
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "id": "stream-crossing",
+      "title": "A crossing protects the channel and banks",
+      "source": "pmfl-council-regulation",
+      "provision": "17",
+      "when": [
+        [
+          {
+            "fact": "crossing",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "finding": "A bridge, culvert or ford on a road or logging trail must be located, built and used so it protects the channel and banks immediately above and below it and mitigates disturbance at it, as far as needed to avoid a material adverse effect on fish habitat or on water a licensed waterworks intake diverts; a logging trail’s crossing is removed once the owner no longer needs it. The regulation authorizes no change in and about a stream: that needs the Water Sustainability Act (§2(1)).",
+      "actions": [
+        {
+          "kind": "implement",
+          "description": "Design and build the crossing to protect the channel and banks, hold the Water Sustainability Act authority for it, and plan a trail crossing’s removal."
+        }
+      ],
+      "scope": [
+        [
+          {
+            "fact": "land",
+            "op": "in",
+            "value": [
+              "Private land",
+              "Both Crown and private land"
+            ]
+          },
+          {
+            "fact": "managed-forest",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "licence-area",
+            "op": "in",
+            "value": [
+              "A First Nations woodland licence",
+              "None of these"
+            ]
+          }
+        ]
+      ],
+      "exceptions": [
+        {
+          "id": "government-act",
+          "label": "The requirement cannot be met because of what a person the government authorized to act did (§3(1))",
+          "source": "pmfl-council-regulation",
+          "provision": "3(1)",
+          "kind": "by-law",
+          "evidence": [
+            "The government authorization and what was done under it"
+          ]
+        },
+        {
+          "id": "workers-compensation",
+          "label": "Only to the extent needed to conform to the Workers Compensation Act or its regulations (§3(2))",
+          "source": "pmfl-council-regulation",
+          "provision": "3(2)",
+          "kind": "by-law",
+          "evidence": [
+            "The safety requirement and why the practice could not also be met"
+          ]
+        },
+        {
+          "id": "prevent-damage",
+          "label": "Only to the extent needed to prevent damage to the environment from occurring or continuing, or to protect the public’s safety (§3(3))",
+          "source": "pmfl-council-regulation",
+          "provision": "3(3)",
+          "kind": "by-law",
+          "evidence": [
+            "The damage or hazard, and why departing from the requirement was needed"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sediment",
+      "title": "No sediment that harms fish habitat or intake water",
+      "source": "pmfl-council-regulation",
+      "provision": "15",
+      "when": [
+        [
+          {
+            "fact": "class-a",
+            "op": "eq",
+            "value": true
+          }
+        ],
+        [
+          {
+            "fact": "class-b",
+            "op": "eq",
+            "value": true
+          }
+        ],
+        [
+          {
+            "fact": "class-c",
+            "op": "eq",
+            "value": true
+          }
+        ],
+        [
+          {
+            "fact": "class-d-e",
+            "op": "eq",
+            "value": true
+          }
+        ],
+        [
+          {
+            "fact": "crossing",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "finding": "Harvesting, road work and silviculture must not send sediment or other material into a stream where it will have a material adverse effect on fish habitat or on water a licensed waterworks intake diverts.",
+      "actions": [
+        {
+          "kind": "implement",
+          "description": "Plan drainage, crossings and timing so no harmful sediment reaches the block’s streams."
+        }
+      ],
+      "scope": [
+        [
+          {
+            "fact": "land",
+            "op": "in",
+            "value": [
+              "Private land",
+              "Both Crown and private land"
+            ]
+          },
+          {
+            "fact": "managed-forest",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "licence-area",
+            "op": "in",
+            "value": [
+              "A First Nations woodland licence",
+              "None of these"
+            ]
+          }
+        ]
+      ],
+      "exceptions": [
+        {
+          "id": "government-act",
+          "label": "The requirement cannot be met because of what a person the government authorized to act did (§3(1))",
+          "source": "pmfl-council-regulation",
+          "provision": "3(1)",
+          "kind": "by-law",
+          "evidence": [
+            "The government authorization and what was done under it"
+          ]
+        },
+        {
+          "id": "workers-compensation",
+          "label": "Only to the extent needed to conform to the Workers Compensation Act or its regulations (§3(2))",
+          "source": "pmfl-council-regulation",
+          "provision": "3(2)",
+          "kind": "by-law",
+          "evidence": [
+            "The safety requirement and why the practice could not also be met"
+          ]
+        },
+        {
+          "id": "prevent-damage",
+          "label": "Only to the extent needed to prevent damage to the environment from occurring or continuing, or to protect the public’s safety (§3(3))",
+          "source": "pmfl-council-regulation",
+          "provision": "3(3)",
+          "kind": "by-law",
+          "evidence": [
+            "The damage or hazard, and why departing from the requirement was needed"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "drinking-water",
+      "title": "No harm to drinking water at an intake",
+      "source": "pmfl-council-regulation",
+      "provision": "14.1",
+      "when": [
+        [
+          {
+            "fact": "drinking-intake",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "finding": "Harvesting, road work and silviculture must not cause a material adverse effect on the quality of drinking water that may affect human health at a drinking water intake’s point of diversion.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Find the intake’s point of diversion and plan the work so the water there is not harmed."
+        }
+      ],
+      "exceptions": [
+        {
+          "id": "built-without-consent",
+          "label": "The intake is another person’s and was built on the owner’s private managed forest land without the owner’s written consent (§14.1(2))",
+          "source": "pmfl-council-regulation",
+          "provision": "14.1(2)",
+          "kind": "by-law",
+          "evidence": [
+            "Who owns the intake",
+            "That the owner gave no written consent to its construction"
+          ]
+        },
+        {
+          "id": "government-act",
+          "label": "The requirement cannot be met because of what a person the government authorized to act did (§3(1))",
+          "source": "pmfl-council-regulation",
+          "provision": "3(1)",
+          "kind": "by-law",
+          "evidence": [
+            "The government authorization and what was done under it"
+          ]
+        },
+        {
+          "id": "workers-compensation",
+          "label": "Only to the extent needed to conform to the Workers Compensation Act or its regulations (§3(2))",
+          "source": "pmfl-council-regulation",
+          "provision": "3(2)",
+          "kind": "by-law",
+          "evidence": [
+            "The safety requirement and why the practice could not also be met"
+          ]
+        },
+        {
+          "id": "prevent-damage",
+          "label": "Only to the extent needed to prevent damage to the environment from occurring or continuing, or to protect the public’s safety (§3(3))",
+          "source": "pmfl-council-regulation",
+          "provision": "3(3)",
+          "kind": "by-law",
+          "evidence": [
+            "The damage or hazard, and why departing from the requirement was needed"
+          ]
+        }
+      ],
+      "scope": [
+        [
+          {
+            "fact": "land",
+            "op": "in",
+            "value": [
+              "Private land",
+              "Both Crown and private land"
+            ]
+          },
+          {
+            "fact": "managed-forest",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "licence-area",
+            "op": "in",
+            "value": [
+              "A First Nations woodland licence",
+              "None of these"
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "id": "intake-road",
+      "title": "No road within 100 m upslope of a licensed waterworks intake",
+      "source": "pmfl-council-regulation",
+      "provision": "20(2)",
+      "when": [
+        [
+          {
+            "fact": "intake-upslope",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "finding": "A road may not be built within 100 m upslope (slope distance) of a licensed waterworks intake unless building it will not increase sediment reaching the intake, or the holder of the intake’s licence approves it first. No activity may damage the intake (§20(1)).",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Relocate the road, or show it adds no sediment to the intake, or obtain the licence holder’s approval before building."
+        }
+      ],
+      "exceptions": [
+        {
+          "id": "no-more-sediment",
+          "label": "The road construction will not increase sediment delivery to the intake (§20(2)(a))",
+          "source": "pmfl-council-regulation",
+          "provision": "20(2)(a)",
+          "kind": "by-law",
+          "evidence": [
+            "The drainage design and why no more sediment reaches the intake"
+          ]
+        },
+        {
+          "id": "licence-holder",
+          "label": "The holder of the intake’s licence approved the road before it was built (§20(2)(b))",
+          "source": "pmfl-council-regulation",
+          "provision": "20(2)(b)",
+          "kind": "decision",
+          "decidedBy": "The holder of the licence for the intake",
+          "evidence": [
+            "The licence holder’s prior approval"
+          ]
+        },
+        {
+          "id": "government-act",
+          "label": "The requirement cannot be met because of what a person the government authorized to act did (§3(1))",
+          "source": "pmfl-council-regulation",
+          "provision": "3(1)",
+          "kind": "by-law",
+          "evidence": [
+            "The government authorization and what was done under it"
+          ]
+        },
+        {
+          "id": "workers-compensation",
+          "label": "Only to the extent needed to conform to the Workers Compensation Act or its regulations (§3(2))",
+          "source": "pmfl-council-regulation",
+          "provision": "3(2)",
+          "kind": "by-law",
+          "evidence": [
+            "The safety requirement and why the practice could not also be met"
+          ]
+        },
+        {
+          "id": "prevent-damage",
+          "label": "Only to the extent needed to prevent damage to the environment from occurring or continuing, or to protect the public’s safety (§3(3))",
+          "source": "pmfl-council-regulation",
+          "provision": "3(3)",
+          "kind": "by-law",
+          "evidence": [
+            "The damage or hazard, and why departing from the requirement was needed"
+          ]
+        }
+      ],
+      "scope": [
+        [
+          {
+            "fact": "land",
+            "op": "in",
+            "value": [
+              "Private land",
+              "Both Crown and private land"
+            ]
+          },
+          {
+            "fact": "managed-forest",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "licence-area",
+            "op": "in",
+            "value": [
+              "A First Nations woodland licence",
+              "None of these"
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "id": "retain-class-a",
+      "title": "At least 30 trees kept beside each 100 m of a class A stream",
+      "source": "pmfl-council-regulation",
+      "provision": "27",
+      "when": [
+        [
+          {
+            "fact": "class-a",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "finding": "On each side of every 100 m of a class A stream beside the cutblock, at least 30 trees are kept, chosen in turn: trees 30 cm or more, then 20 cm or more, within 10 m of the channel edge, then within 20 m, then within 30 m, keeping the stand’s mix of conifers and broadleaves and, for the larger trees, its range of sizes; where fewer qualify, all that do. They are spread along the 100 m unless the other bank meets the count and the species do not suit partial cutting, and one may be removed only if it falls naturally outside the channel. Hybrid poplar and cottonwood plantations on the lower Fraser are excepted (§27(6)).",
+      "actions": [
+        {
+          "kind": "implement",
+          "description": "Select and mark the trees to keep on each side of every 100 m of the class A stream before falling."
+        }
+      ],
+      "scope": [
+        [
+          {
+            "fact": "land",
+            "op": "in",
+            "value": [
+              "Private land",
+              "Both Crown and private land"
+            ]
+          },
+          {
+            "fact": "managed-forest",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "licence-area",
+            "op": "in",
+            "value": [
+              "A First Nations woodland licence",
+              "None of these"
+            ]
+          }
+        ]
+      ],
+      "exceptions": [
+        {
+          "id": "government-act",
+          "label": "The requirement cannot be met because of what a person the government authorized to act did (§3(1))",
+          "source": "pmfl-council-regulation",
+          "provision": "3(1)",
+          "kind": "by-law",
+          "evidence": [
+            "The government authorization and what was done under it"
+          ]
+        },
+        {
+          "id": "workers-compensation",
+          "label": "Only to the extent needed to conform to the Workers Compensation Act or its regulations (§3(2))",
+          "source": "pmfl-council-regulation",
+          "provision": "3(2)",
+          "kind": "by-law",
+          "evidence": [
+            "The safety requirement and why the practice could not also be met"
+          ]
+        },
+        {
+          "id": "prevent-damage",
+          "label": "Only to the extent needed to prevent damage to the environment from occurring or continuing, or to protect the public’s safety (§3(3))",
+          "source": "pmfl-council-regulation",
+          "provision": "3(3)",
+          "kind": "by-law",
+          "evidence": [
+            "The damage or hazard, and why departing from the requirement was needed"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "retain-class-b",
+      "title": "At least 25 trees kept beside each 100 m of a class B stream",
+      "source": "pmfl-council-regulation",
+      "provision": "28",
+      "when": [
+        [
+          {
+            "fact": "class-b",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "finding": "On each side of every 100 m of a class B stream beside the cutblock, at least 25 trees are kept, chosen in turn as for a class A stream: 30 cm and then 20 cm trees within 10 m, 20 m and 30 m of the channel edge, keeping the stand’s mix of conifers and broadleaves and its range of sizes; where fewer qualify, all that do.",
+      "actions": [
+        {
+          "kind": "implement",
+          "description": "Select and mark the trees to keep on each side of every 100 m of the class B stream before falling."
+        }
+      ],
+      "scope": [
+        [
+          {
+            "fact": "land",
+            "op": "in",
+            "value": [
+              "Private land",
+              "Both Crown and private land"
+            ]
+          },
+          {
+            "fact": "managed-forest",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "licence-area",
+            "op": "in",
+            "value": [
+              "A First Nations woodland licence",
+              "None of these"
+            ]
+          }
+        ]
+      ],
+      "exceptions": [
+        {
+          "id": "government-act",
+          "label": "The requirement cannot be met because of what a person the government authorized to act did (§3(1))",
+          "source": "pmfl-council-regulation",
+          "provision": "3(1)",
+          "kind": "by-law",
+          "evidence": [
+            "The government authorization and what was done under it"
+          ]
+        },
+        {
+          "id": "workers-compensation",
+          "label": "Only to the extent needed to conform to the Workers Compensation Act or its regulations (§3(2))",
+          "source": "pmfl-council-regulation",
+          "provision": "3(2)",
+          "kind": "by-law",
+          "evidence": [
+            "The safety requirement and why the practice could not also be met"
+          ]
+        },
+        {
+          "id": "prevent-damage",
+          "label": "Only to the extent needed to prevent damage to the environment from occurring or continuing, or to protect the public’s safety (§3(3))",
+          "source": "pmfl-council-regulation",
+          "provision": "3(3)",
+          "kind": "by-law",
+          "evidence": [
+            "The damage or hazard, and why departing from the requirement was needed"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "retain-class-c",
+      "title": "At least 15 trees kept beside each 100 m of a class C stream",
+      "source": "pmfl-council-regulation",
+      "provision": "29",
+      "when": [
+        [
+          {
+            "fact": "class-c",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "finding": "On each side of every 100 m of a class C stream beside the cutblock, at least 15 trees 20 cm or more in diameter within 10 m of the channel edge are kept, keeping the stand’s mix of conifers and broadleaves and its range of sizes; where fewer qualify, all that do. Where the stream is steeper than 8%, a kept tree may be cut only if another 20 cm tree is kept in its place; at 8% or less, one may be removed only if it falls naturally outside the channel.",
+      "actions": [
+        {
+          "kind": "implement",
+          "description": "Select and mark the trees to keep on each side of every 100 m of the class C stream before falling, and record the stream’s gradient."
+        }
+      ],
+      "scope": [
+        [
+          {
+            "fact": "land",
+            "op": "in",
+            "value": [
+              "Private land",
+              "Both Crown and private land"
+            ]
+          },
+          {
+            "fact": "managed-forest",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "licence-area",
+            "op": "in",
+            "value": [
+              "A First Nations woodland licence",
+              "None of these"
+            ]
+          }
+        ]
+      ],
+      "exceptions": [
+        {
+          "id": "government-act",
+          "label": "The requirement cannot be met because of what a person the government authorized to act did (§3(1))",
+          "source": "pmfl-council-regulation",
+          "provision": "3(1)",
+          "kind": "by-law",
+          "evidence": [
+            "The government authorization and what was done under it"
+          ]
+        },
+        {
+          "id": "workers-compensation",
+          "label": "Only to the extent needed to conform to the Workers Compensation Act or its regulations (§3(2))",
+          "source": "pmfl-council-regulation",
+          "provision": "3(2)",
+          "kind": "by-law",
+          "evidence": [
+            "The safety requirement and why the practice could not also be met"
+          ]
+        },
+        {
+          "id": "prevent-damage",
+          "label": "Only to the extent needed to prevent damage to the environment from occurring or continuing, or to protect the public’s safety (§3(3))",
+          "source": "pmfl-council-regulation",
+          "provision": "3(3)",
+          "kind": "by-law",
+          "evidence": [
+            "The damage or hazard, and why departing from the requirement was needed"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "understory",
+      "title": "Non-commercial trees and understory kept beside classed streams",
+      "source": "pmfl-council-regulation",
+      "provision": "30",
+      "when": [
+        [
+          {
+            "fact": "class-a",
+            "op": "eq",
+            "value": true
+          }
+        ],
+        [
+          {
+            "fact": "class-b",
+            "op": "eq",
+            "value": true
+          }
+        ],
+        [
+          {
+            "fact": "class-c",
+            "op": "eq",
+            "value": true
+          }
+        ],
+        [
+          {
+            "fact": "class-d-e",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "finding": "All non-commercial trees and understory vegetation are kept within 30 m of a class A or B stream and within 10 m of a class C, D or E stream (slope distance).",
+      "actions": [
+        {
+          "kind": "implement",
+          "description": "Keep the understory and non-commercial trees in those strips through falling, yarding and site preparation."
+        }
+      ],
+      "exceptions": [
+        {
+          "id": "reforestation",
+          "label": "Falling, removal or disturbance needed to reforest under §31 (§30(2)(c))",
+          "source": "pmfl-council-regulation",
+          "provision": "30(2)(c)",
+          "kind": "by-law",
+          "evidence": [
+            "The reforestation work and why it needs the disturbance"
+          ]
+        },
+        {
+          "id": "road-or-crossing",
+          "label": "Associated with a road built under §16 or §17, or a logging trail crossing under §17 (§30(2)(d)–(e))",
+          "source": "pmfl-council-regulation",
+          "provision": "30(2)(d)–(e)",
+          "kind": "by-law",
+          "evidence": [
+            "The road or crossing and the strip it takes"
+          ]
+        },
+        {
+          "id": "no-harm",
+          "label": "It will not cause a material adverse effect on fish habitat or water a licensed waterworks intake diverts (§30(2)(f))",
+          "source": "pmfl-council-regulation",
+          "provision": "30(2)(f)",
+          "kind": "by-law",
+          "evidence": [
+            "Why fish habitat and intake water are not harmed"
+          ]
+        },
+        {
+          "id": "government-act",
+          "label": "The requirement cannot be met because of what a person the government authorized to act did (§3(1))",
+          "source": "pmfl-council-regulation",
+          "provision": "3(1)",
+          "kind": "by-law",
+          "evidence": [
+            "The government authorization and what was done under it"
+          ]
+        },
+        {
+          "id": "workers-compensation",
+          "label": "Only to the extent needed to conform to the Workers Compensation Act or its regulations (§3(2))",
+          "source": "pmfl-council-regulation",
+          "provision": "3(2)",
+          "kind": "by-law",
+          "evidence": [
+            "The safety requirement and why the practice could not also be met"
+          ]
+        },
+        {
+          "id": "prevent-damage",
+          "label": "Only to the extent needed to prevent damage to the environment from occurring or continuing, or to protect the public’s safety (§3(3))",
+          "source": "pmfl-council-regulation",
+          "provision": "3(3)",
+          "kind": "by-law",
+          "evidence": [
+            "The damage or hazard, and why departing from the requirement was needed"
+          ]
+        }
+      ],
+      "scope": [
+        [
+          {
+            "fact": "land",
+            "op": "in",
+            "value": [
+              "Private land",
+              "Both Crown and private land"
+            ]
+          },
+          {
+            "fact": "managed-forest",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "licence-area",
+            "op": "in",
+            "value": [
+              "A First Nations woodland licence",
+              "None of these"
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "id": "reforest-interior",
+      "title": "Restocked within 5 years and regenerated within 15 (Interior)",
+      "source": "pmfl-council-regulation",
+      "provision": "31(3)",
+      "when": [
+        [
+          {
+            "fact": "region",
+            "op": "eq",
+            "value": "The Interior"
+          }
+        ]
+      ],
+      "finding": "The harvested area, less its roads and logging trails, must be restocked within 5 years of harvesting’s completion with at least 600 crop trees a hectare reasonably well distributed, and hold a successfully regenerated stand within 15 years: at least 600 crop trees a hectare that are taller than the competing vegetation within 1 m by 25%. Crop trees are commercial species the management commitment names. Harvesting is complete on the date the owner’s annual declaration gives, or at most two operating seasons after it began.",
+      "actions": [
+        {
+          "kind": "implement",
+          "description": "Plan restocking to 600 crop trees a hectare within 5 years and the stand’s care to 15 years."
+        }
+      ],
+      "exceptions": [
+        {
+          "id": "under-1-ha",
+          "label": "The area harvested or destroyed is a contiguous area under 1 ha (§31(2)(a))",
+          "source": "pmfl-council-regulation",
+          "provision": "31(2)(a)",
+          "kind": "by-law",
+          "evidence": [
+            "The area’s measured size"
+          ]
+        },
+        {
+          "id": "already-regenerated",
+          "label": "The trees left on the area already make a successfully regenerated stand (§31(2)(b))",
+          "source": "pmfl-council-regulation",
+          "provision": "31(2)(b)",
+          "kind": "by-law",
+          "evidence": [
+            "A survey of the residual stand against the density and height tests"
+          ]
+        },
+        {
+          "id": "built-on",
+          "label": "The area harvested becomes occupied by buildings or other structures or installations (§31(6)(b))",
+          "source": "pmfl-council-regulation",
+          "provision": "31(6)(b)",
+          "kind": "by-law",
+          "evidence": [
+            "What occupies the area"
+          ]
+        },
+        {
+          "id": "government-act",
+          "label": "The requirement cannot be met because of what a person the government authorized to act did (§3(1))",
+          "source": "pmfl-council-regulation",
+          "provision": "3(1)",
+          "kind": "by-law",
+          "evidence": [
+            "The government authorization and what was done under it"
+          ]
+        },
+        {
+          "id": "workers-compensation",
+          "label": "Only to the extent needed to conform to the Workers Compensation Act or its regulations (§3(2))",
+          "source": "pmfl-council-regulation",
+          "provision": "3(2)",
+          "kind": "by-law",
+          "evidence": [
+            "The safety requirement and why the practice could not also be met"
+          ]
+        },
+        {
+          "id": "prevent-damage",
+          "label": "Only to the extent needed to prevent damage to the environment from occurring or continuing, or to protect the public’s safety (§3(3))",
+          "source": "pmfl-council-regulation",
+          "provision": "3(3)",
+          "kind": "by-law",
+          "evidence": [
+            "The damage or hazard, and why departing from the requirement was needed"
+          ]
+        }
+      ],
+      "scope": [
+        [
+          {
+            "fact": "land",
+            "op": "in",
+            "value": [
+              "Private land",
+              "Both Crown and private land"
+            ]
+          },
+          {
+            "fact": "managed-forest",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "licence-area",
+            "op": "in",
+            "value": [
+              "A First Nations woodland licence",
+              "None of these"
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "id": "reforest-coast",
+      "title": "Restocked within 5 years and regenerated within 15 (Coast)",
+      "source": "pmfl-council-regulation",
+      "provision": "31(3)",
+      "when": [
+        [
+          {
+            "fact": "region",
+            "op": "eq",
+            "value": "The Coast"
+          }
+        ]
+      ],
+      "finding": "The harvested area, less its roads and logging trails, must be restocked within 5 years of harvesting’s completion with at least 400 crop trees a hectare reasonably well distributed, and hold a successfully regenerated stand within 15 years: at least 400 crop trees a hectare that are taller than the competing vegetation within 1 m by 50%. Crop trees are commercial species the management commitment names. Harvesting is complete on the date the owner’s annual declaration gives, or at most two operating seasons after it began.",
+      "actions": [
+        {
+          "kind": "implement",
+          "description": "Plan restocking to 400 crop trees a hectare within 5 years and the stand’s care to 15 years."
+        }
+      ],
+      "exceptions": [
+        {
+          "id": "under-1-ha",
+          "label": "The area harvested or destroyed is a contiguous area under 1 ha (§31(2)(a))",
+          "source": "pmfl-council-regulation",
+          "provision": "31(2)(a)",
+          "kind": "by-law",
+          "evidence": [
+            "The area’s measured size"
+          ]
+        },
+        {
+          "id": "already-regenerated",
+          "label": "The trees left on the area already make a successfully regenerated stand (§31(2)(b))",
+          "source": "pmfl-council-regulation",
+          "provision": "31(2)(b)",
+          "kind": "by-law",
+          "evidence": [
+            "A survey of the residual stand against the density and height tests"
+          ]
+        },
+        {
+          "id": "built-on",
+          "label": "The area harvested becomes occupied by buildings or other structures or installations (§31(6)(b))",
+          "source": "pmfl-council-regulation",
+          "provision": "31(6)(b)",
+          "kind": "by-law",
+          "evidence": [
+            "What occupies the area"
+          ]
+        },
+        {
+          "id": "government-act",
+          "label": "The requirement cannot be met because of what a person the government authorized to act did (§3(1))",
+          "source": "pmfl-council-regulation",
+          "provision": "3(1)",
+          "kind": "by-law",
+          "evidence": [
+            "The government authorization and what was done under it"
+          ]
+        },
+        {
+          "id": "workers-compensation",
+          "label": "Only to the extent needed to conform to the Workers Compensation Act or its regulations (§3(2))",
+          "source": "pmfl-council-regulation",
+          "provision": "3(2)",
+          "kind": "by-law",
+          "evidence": [
+            "The safety requirement and why the practice could not also be met"
+          ]
+        },
+        {
+          "id": "prevent-damage",
+          "label": "Only to the extent needed to prevent damage to the environment from occurring or continuing, or to protect the public’s safety (§3(3))",
+          "source": "pmfl-council-regulation",
+          "provision": "3(3)",
+          "kind": "by-law",
+          "evidence": [
+            "The damage or hazard, and why departing from the requirement was needed"
+          ]
+        }
+      ],
+      "scope": [
+        [
+          {
+            "fact": "land",
+            "op": "in",
+            "value": [
+              "Private land",
+              "Both Crown and private land"
+            ]
+          },
+          {
+            "fact": "managed-forest",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "licence-area",
+            "op": "in",
+            "value": [
+              "A First Nations woodland licence",
+              "None of these"
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "id": "critical-habitat",
+      "title": "Harvest and roads in critical wildlife habitat follow the minister’s notice",
+      "source": "pmfl-regulation",
+      "provision": "5(2), 7",
+      "when": [
+        [
+          {
+            "fact": "wildlife-notice",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "finding": "Inside critical wildlife habitat the wildlife minister established, harvesting and road building must follow the notice’s requirements. Unless the owner agreed otherwise, the area to be modified is at most the lesser of 1% of the land in the management commitment and the area the species needs, and modified operations last at most a year; the requirements take effect 14 days after the owner receives the notice, or on the date the minister names.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Read the notice and plan the harvest and roads to its requirements."
+        }
+      ],
+      "scope": [
+        [
+          {
+            "fact": "land",
+            "op": "in",
+            "value": [
+              "Private land",
+              "Both Crown and private land"
+            ]
+          },
+          {
+            "fact": "managed-forest",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "licence-area",
+            "op": "in",
+            "value": [
+              "A First Nations woodland licence",
+              "None of these"
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "id": "possible-habitat",
+      "title": "Possible habitat of a listed species: notify, and hold off",
+      "source": "pmfl-regulation",
+      "provision": "8(2)",
+      "when": [
+        [
+          {
+            "fact": "possible-habitat",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "finding": "An owner who knows the land may hold habitat for a species on the ministry’s list must promptly notify the wildlife minister and hold off road building and harvesting that could harm it until 14 days after the minister receives the notice, the minister says the work may go ahead, or a notice establishing critical wildlife habitat arrives, whichever is first.",
+      "actions": [
+        {
+          "kind": "submit",
+          "description": "Notify the wildlife minister, and hold the work that could harm the habitat until one of §8(2)(b)’s three events."
+        }
+      ],
+      "exceptions": [
+        {
+          "id": "relieved",
+          "label": "The wildlife minister relieved the owner of notifying for the species (§8(3))",
+          "source": "pmfl-regulation",
+          "provision": "8(3)",
+          "kind": "decision",
+          "decidedBy": "The wildlife minister",
+          "evidence": [
+            "The minister’s relief and the species it names"
+          ]
+        }
+      ],
+      "scope": [
+        [
+          {
+            "fact": "land",
+            "op": "in",
+            "value": [
+              "Private land",
+              "Both Crown and private land"
+            ]
+          },
+          {
+            "fact": "managed-forest",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "licence-area",
+            "op": "in",
+            "value": [
+              "A First Nations woodland licence",
+              "None of these"
+            ]
+          }
+        ]
+      ]
+    }
+  ]
+}

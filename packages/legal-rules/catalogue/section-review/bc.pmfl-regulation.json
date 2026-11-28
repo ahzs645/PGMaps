@@ -52,9 +52,8 @@
       "n": "5",
       "relevance": "block",
       "bearsOn": "The wildlife minister may establish, vary or cancel an area of private managed forest land as critical wildlife habitat where habitat of a Schedule C species at risk is on the land and is required for the species' survival because suitable habitat on Crown land in that ecoregion is insufficient; within it, the owner must carry out timber harvesting, related activities and road construction as the s. 7 notice requires.",
-      "review": "none",
-      "gapPriority": "medium",
-      "gapNote": "A rule would ask whether the block or its road lies in critical wildlife habitat established by a wildlife minister's notice and, if so, whether harvest and roads follow the notice's modifications.",
+      "review": "rule",
+      "gapNote": "Raised when the reviewer answers that the wildlife minister’s notice applies.",
       "topics": [
         "wildlife",
         "private-land"
@@ -76,9 +75,8 @@
       "n": "7",
       "relevance": "block",
       "bearsOn": "Before establishing critical wildlife habitat the wildlife minister must give the owner a notice describing it and the area where roads and harvest must be modified; unless the owner agrees, that area is new, totals no more than the lesser of 1% of the land in the management commitment or the area the species needs, and modified operations last no more than one year. The habitat takes effect on receipt and the modifications 14 days after receipt or on a date the minister sets.",
-      "review": "none",
-      "gapPriority": "low",
-      "gapNote": "A rule would date a notice's modifications (in effect 14 days after receipt, no longer than one year) against the block's harvest and road dates.",
+      "review": "rule",
+      "gapNote": "Its limits (1% of the commitment’s land, one year, 14 days) are printed in the critical habitat finding.",
       "topics": [
         "wildlife",
         "private-land"
@@ -88,9 +86,8 @@
       "n": "8",
       "relevance": "block",
       "bearsOn": "Where the ministry has published, by ecoregion, species at risk lacking habitat on Crown land, an owner who knows there may be habitat for a listed species on the land must promptly notify the wildlife minister and refrain from road construction or harvest that could harm it until 14 days after the minister receives the notice, the minister says the work may proceed, or a s. 7 notice is received, whichever comes first.",
-      "review": "none",
-      "gapPriority": "medium",
-      "gapNote": "A rule would ask whether habitat of a listed species may be on or by the block and, if so, whether the minister was notified and the 14-day hold has passed before harvest or road construction.",
+      "review": "rule",
+      "gapNote": "Raised when the owner knows of possible habitat; s. 8(3) is an exception decided by the wildlife minister.",
       "topics": [
         "wildlife",
         "private-land"

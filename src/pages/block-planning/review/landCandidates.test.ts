@@ -111,10 +111,30 @@ describe('land status candidates', () => {
   it('offers the licence covering most of the block, and notes a block only partly in one', () => {
     const whole = landCandidates(read({ licences: { 'woodlot-licence': 40 } }))!
     expect(offer(read({ licences: { 'woodlot-licence': 40 } }), 'licence-area')).toBe('A woodlot licence')
-    expect(whole.notes).toEqual([])
+    expect(whole.notes.filter((n) => /licence/i.test(n))).toEqual([])
     const part = landCandidates(read({ licences: { 'woodlot-licence': 12, 'community-forest': 20 } }))!
     expect(part.offers.find((o) => o.fact === 'licence-area')!.value).toBe('A community forest agreement')
     expect(part.notes.join(' ')).toContain('only part of the block')
+  })
+
+  it('reads a sliver of a few square metres as boundaries meeting, never as land in the block', () => {
+    const c = landCandidates(read({ privateHa: 0.0006 }))!
+    expect(c.offers.find((o) => o.fact === 'land')!.value).toBe(LAND.crown)
+    expect(c.notes.join(' ')).toContain('only 6 m²')
+    expect(landCandidates(read({ privateHa: 0.02 }))!.offers.find((o) => o.fact === 'land')!.value).toBe(LAND.both)
+    const licence = landCandidates(read({ licences: { 'woodlot-licence': 0.003 } }))!
+    expect(licence.offers.find((o) => o.fact === 'licence-area')!.value).toBe(NO_LICENCE_AREA)
+    expect(licence.notes.join(' ')).toContain('woodlot licence touches the block by only 30 m²')
+  })
+
+  it('offers a mineral title only where a tenure covers part of the block', () => {
+    const tenure = (ha: number) => ({
+      ...read(),
+      instruments: [...read().instruments, instrument('mineral-placer-tenure', ha)],
+    })
+    expect(landCandidates(tenure(12))!.offers.find((o) => o.fact === 'mineral-title')!.value).toBe(true)
+    expect(landCandidates(tenure(0))!.offers.find((o) => o.fact === 'mineral-title')!.value).toBe(false)
+    expect(landCandidates(read())!.offers.some((o) => o.fact === 'mineral-title')).toBe(false)
   })
 
   it('keeps the context layers through a saved plan, and opens a read without them', () => {

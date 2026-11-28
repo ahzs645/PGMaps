@@ -1,0 +1,64 @@
+{
+  "format": "pgmaps-coverage-review/v1",
+  "source": "bc.pmfl-council-matters-regulation",
+  "reviewedOn": "2026-11-27",
+  "method": "Each section read in full by a machine-assisted reviewer against the packs and the ground catalogue as of this date; not a legal review.",
+  "sections": [
+    {
+      "n": "1",
+      "relevance": "definitions",
+      "bearsOn": "Defines for the Act and its regulations the terms the practice rules turn on: Coast (the former Coast Forest Region) and Interior (the rest of BC), fish stream (frequented by a listed species, or under 20% gradient over each 100 m unless an inventory or a proven barrier shows otherwise), the specified species of fish, licensed waterworks intake (a municipal, regional or improvement district waterworks licence, or a water users' community's domestic licence), stream, road (its pit, quarry and landing in the clearing width included), excavated or bladed trail, and operating season.",
+      "review": "rule",
+      "gapPriority": "medium",
+      "gapNote": "The private managed forest land pack uses Coast and Interior for the reforestation densities; whether a stream is a fish stream, and so classed, is the reviewer's answer and its 20% gradient test is not asked.",
+      "topics": [
+        "private-land",
+        "fish-habitat",
+        "water-quality-and-supply",
+        "administration"
+      ]
+    },
+    {
+      "n": "2",
+      "relevance": "admin",
+      "bearsOn": "The wildlife minister may set water quality objectives for a stream upstream of a licensed waterworks intake, after consulting affected owners, effective six months after the council is told; the minister may enter to monitor on 14 days' notice.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A rule would ask whether a water quality objective is set for a stream above an intake that the block drains to, which Council Regulation s. 24(3)(b) then reads for fertilizer.",
+      "topics": [
+        "private-land",
+        "water-quality-and-supply"
+      ]
+    },
+    {
+      "n": "3",
+      "relevance": "admin",
+      "bearsOn": "The council need not consider a review request about the annual administration fee or the exit fee's calculation.",
+      "review": "n/a",
+      "topics": [
+        "private-land",
+        "appeals-and-reviews"
+      ]
+    },
+    {
+      "n": "4",
+      "relevance": "enforcement",
+      "bearsOn": "Sets the form of an owner's notice taking on a remediation order.",
+      "review": "n/a",
+      "topics": [
+        "private-land",
+        "compliance-and-enforcement"
+      ]
+    },
+    {
+      "n": "5",
+      "relevance": "enforcement",
+      "bearsOn": "Contravening the Council Regulation's practice sections (13–24, 27–30) is an offence with a fine of up to $500,000, and its notice and selection sections up to $25,000.",
+      "review": "n/a",
+      "topics": [
+        "private-land",
+        "compliance-and-enforcement"
+      ]
+    }
+  ]
+}

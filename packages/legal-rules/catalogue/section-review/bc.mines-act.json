@@ -8,9 +8,8 @@
       "n": "1",
       "relevance": "definitions",
       "bearsOn": "Defines mine to include a place where the ground is mechanically disturbed or excavated to explore for or produce rock, limestone, earth, clay, sand or gravel, with its cleared areas, machinery and buildings, and closed and abandoned mines; mining activity is any activity related to exploring, developing or producing a mineral, placer mineral, coal, sand, gravel or rock, reclamation included. The text makes no exception for a pit or quarry dug for road building, so a forest road's gravel pit or rock quarry is a mine under the Act.",
-      "review": "none",
-      "gapPriority": "medium",
-      "gapNote": "A rule would test whether a road's borrow pit, gravel pit or quarry is a mine under s. 1, which brings s. 10's permit requirement to it.",
+      "review": "rule",
+      "gapNote": "The pit rule quotes \"mine\" and \"mining activity\": a pit or quarry for road sand, gravel or rock is a mine.",
       "topics": [
         "mining",
         "gravel-and-fill",
@@ -192,9 +191,8 @@
       "n": "10",
       "relevance": "block",
       "bearsOn": "Before starting any work in, on or about a mine, the owner, agent, manager or any other person must hold a permit from the chief permitting officer, filing a plan of the work and a program to conserve cultural heritage resources and protect and reclaim the land and watercourses affected; classes of persons or work may be exempted by regulation, a person may be exempted in writing, and a permit may require reclamation security. Under the Mineral Tenure Act s. 14 the issue of any permit under this section gives a recorded holder the use of a claim's surface.",
-      "review": "none",
-      "gapPriority": "high",
-      "gapNote": "A rule would test whether a block's road pit or quarry, or work in, on or about an existing mine on the block, has a permit under s. 10 or an exemption under s. 10 (1.1) or (2) before work starts, and whether a permit issued on a claim under the block has given its holder surface rights.",
+      "review": "rule",
+      "gapNote": "The pit rule and the holder’s permit rule raise it; s. 10(1.1) and (2) are exceptions. Which pits a regulation exempts is not stored.",
       "topics": [
         "mining",
         "gravel-and-fill",

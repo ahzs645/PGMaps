@@ -1,0 +1,42 @@
+{
+  "format": "pgmaps-legal-pack/v1",
+  "id": "bc.mineral-tenure",
+  "version": "1.0.0",
+  "title": "BC mineral tenures and mines",
+  "description": "A block or road over a mineral or placer claim or lease, and a pit or quarry dug for road gravel or rock: the recorded holder’s surface rights and how a later surface disposition stands against them, the Mines Act permit before mining work, the Forest Act licence or permit the holder needs to cut Crown timber, and the Mines Act permit a road pit or quarry needs unless it is exempt. Coal tenures, the Mines Act’s regulations and the Health, Safety and Reclamation Code are not read. A mapped tenure is a candidate; the title and its standing are the reviewer’s answers.",
+  "relatedPacks": [
+    {
+      "id": "bc.land-status",
+      "relationship": "Read beside it: a mineral title can lie under Crown or private land."
+    }
+  ],
+  "coverage": {
+    "from": "2026-11-17",
+    "through": "2026-11-27"
+  },
+  "facts": [
+    {
+      "id": "mineral-title",
+      "type": "boolean",
+      "label": "Is there a mineral or placer claim or lease under the Mineral Tenure Act over the block or its roads (Mines Act §1, “mineral title”)?"
+    },
+    {
+      "id": "in-production",
+      "type": "boolean",
+      "label": "Is that mineral title in production, or being prepared for production (Mineral Tenure Act §14(3)–(4))?"
+    },
+    {
+      "id": "holder-cuts",
+      "type": "boolean",
+      "label": "Will the title’s recorded holder cut the block’s timber for its own mining work, rather than a forest tenure holder harvesting it?"
+    },
+    {
+      "id": "pit",
+      "type": "boolean",
+      "label": "Will the block’s roads take sand, gravel or rock from a pit or quarry dug for them (Mines Act §1, “mine”, “mining activity”)?"
+    }
+  ],
+  "parameters": [],
+  "sourceFiles": ["sources/bc/mineral-tenure-act.json", "sources/bc/mines-act.json", "sources/bc/forest-act.json"],
+  "ruleFiles": ["rules/bc/mineral-tenure.json"]
+}

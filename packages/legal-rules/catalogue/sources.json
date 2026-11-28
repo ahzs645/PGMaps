@@ -454,6 +454,21 @@
       "legalReview": "not-completed"
     },
     {
+      "id": "bc.pmfl-council-matters-regulation",
+      "title": "Private Managed Forest Land Council Matters Regulation, BC Reg 372/2004",
+      "kind": "regulation",
+      "url": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/372_2004",
+      "civix": {
+        "aspect": "complete",
+        "index": "statreg",
+        "documentId": "372_2004",
+        "xmlUrl": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/372_2004/xml"
+      },
+      "consolidationCurrentTo": "2026-11-27",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed"
+    },
+    {
       "id": "bc.wlppr",
       "title": "Woodlot Licence Planning and Practices Regulation, BC Reg 21/2004",
       "kind": "regulation",

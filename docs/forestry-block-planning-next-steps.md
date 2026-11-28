@@ -48,21 +48,25 @@ Built on 27 November 2026 and moved into the planner contract, **Getting the rec
 
 ## Done: land status
 
-Built on 27 November 2026 and moved into [the planner contract](forestry-patch-scenarios.md), **Land status**: `bc.land-status` 1.0.0, first in every block review; the Private Managed Forest Land Act, its Regulation and the Council Regulation, the WLPPR and the Mines Act stored whole and reviewed section by section; the ground read's context layers (reserves, treaty lands) read for its candidates.
+Built on 27 November 2026 and moved into [the planner contract](forestry-patch-scenarios.md), **Land status**: `bc.land-status` 1.0.0, first in every block review, with `bc.private-managed-forest` 1.0.0 (the Council Regulation's practice requirements) and `bc.mineral-tenure` 1.0.0 (mineral titles and road pits); the Private Managed Forest Land Act, its Regulation, Council Regulation and Council Matters Regulation, the WLPPR and the Mines Act stored whole and reviewed section by section; the ground read's context layers (reserves, treaty lands) read for its candidates.
 
 ## Next
-
-### Private managed forest land
-
-The Council Regulation's practice requirements as a pack for a block the land status review puts on private managed forest land: roads and logging trails held to the minimum (ss. 13–14, which state no figure, so a reviewer's judgement beside the measured road area), roads beside streams (s. 16: 30 m from class A and B streams, 10 m from C, D and E), crossings and drainage (ss. 17–22), drinking water and licensed intakes (ss. 14.1, 15, 20, 23, 25), tree retention by stream class (ss. 27–30), reforestation (s. 31: 400 or 600 crop trees a hectare within 5 years, a regenerated stand within 15) and critical wildlife habitat (the Regulation's ss. 5–8). The stream classes and the Coast and Interior line come from the Private Managed Forest Land Council Matters Regulation (BC Reg 372/2004), which must be stored and read first.
-
-### Mineral and placer tenures
-
-A pack for a block or road over a mineral or placer claim or lease: the recorded holder's surface rights once a Mines Act permit is issued and its timber under the Forest Act (Mineral Tenure Act ss. 14, 16), and a Mines Act s. 10 permit before work on a mine, which the Act's definition makes of a pit or quarry dug for road gravel or rock. Which pits a regulation exempts, and the Health, Safety and Reclamation Code, are not stored.
 
 ### The woodlot regulation
 
 The WLPPR's practice requirements for a woodlot licence holder's block, in place of the FPPR findings the land status review says are not the block's: the plan's avoid and modified areas (s. 53), soil disturbance (s. 24), permanent access structures (s. 25), riparian classes and zones (ss. 36–40), wildlife tree retention across the licence area (s. 52), community watershed intakes (ss. 48, 50), each read through the plan's alternative performance requirements (s. 13). The section review lists fifteen high gaps.
+
+### What the back-test of 27 November found
+
+Twenty-two openings harvested from 2015 to 2024 in the Prince George, Mackenzie and Stuart Nechako districts were run through the planner's own reads and rules, with facts taken only from the public record (real ids kept outside the repository). Reserves and treaty land are now read (land status, above), and a sliver is no longer offered as land. Left, highest first:
+
+1. **A review dated after a release's window loses it silently.** Several releases cover only 17 November 2026; a later or a historical assessment date makes every rule `outside_source_window`, which the counts show as not applicable. Say it in the review, and widen the windows the texts support.
+2. **A legal OGMA under an order the old-growth pack does not hold raises nothing** (one block cut into a Robson Valley legal OGMA).
+3. **Slivers elsewhere.** `MIN_GROUND_OVERLAP_HA` (1 m²) lets 1–30 m² overlaps through *On this ground* and the precedent's overlap test; land status now reads them as boundaries meeting, the rest does not.
+4. **The crossing read:** a tree farm licence's timber mark with a slash (`53/353`) throws and loses the read; the first road found labels a crossing even when it is a pending or retired permit beside an active forest service road; two surveys of one culvert 19–20 m apart become two candidates; a timber-mark corridor that matches no road reads as read with nothing, while PSCIS records outside the corridor are still listed.
+5. **Exceptions the record shows:** catastrophic salvage (`CATASTROPHIC_IND`) and an SP-exempt block (`SP_EXEMPT_IND`, FPPR §33) are not read, so `limit-60` and `site-plan` are raised with no exception offered.
+6. **Harvest on another holder's area-based licence** (a forestry licence to cut on a woodlot or community forest) falls out of both permit packs, and ParcelMap's *Unclassified* and *Crown Agency* parcels are dropped by the private land filter (Crown agency land is private land under the Forest Act's definition).
+7. **A block of many parts** cost 163 s and 149 MB, most of it the pine-leading gate reading the TSA polygon once a part.
 
 ### Stream crossings from the road designer and the map
 

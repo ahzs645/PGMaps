@@ -828,11 +828,12 @@
       "n": "47.5",
       "relevance": "tenure",
       "bearsOn": "Payment and term rules for occupant and master licences to cut; no bearing on a planned block.",
-      "review": "n/a",
+      "review": "rule",
       "topics": [
         "harvest-authority",
         "forest-tenures"
-      ]
+      ],
+      "gapNote": "Quoted by the mineral tenure pack: a mineral title holder cuts Crown timber under a free use permit (5 years, 50 m³, no stumpage) or an occupant licence to cut (stumpage and waste)."
     },
     {
       "n": "47.6",
@@ -914,21 +915,23 @@
       "n": "48",
       "relevance": "tenure",
       "bearsOn": "Who may hold a free use permit (agricultural clearing, firewood, Christmas trees, science, mineral and coal titles, traditional and cultural use, treaty First Nations); small personal or incidental harvest, not a planned cutblock.",
-      "review": "n/a",
+      "review": "rule",
       "topics": [
         "harvest-authority",
         "forest-tenures"
-      ]
+      ],
+      "gapNote": "Quoted by the mineral tenure pack: a mineral title holder cuts Crown timber under a free use permit (5 years, 50 m³, no stumpage) or an occupant licence to cut (stumpage and waste)."
     },
     {
       "n": "49",
       "relevance": "tenure",
       "bearsOn": "Free use permits run at most 1 or 5 years and 50 m3 (except prescribed cultural use), with no stumpage; not a planned cutblock.",
-      "review": "n/a",
+      "review": "rule",
       "topics": [
         "harvest-authority",
         "forest-tenures"
-      ]
+      ],
+      "gapNote": "Quoted by the mineral tenure pack: a mineral title holder cuts Crown timber under a free use permit (5 years, 50 m³, no stumpage) or an occupant licence to cut (stumpage and waste)."
     },
     {
       "n": "49.1",

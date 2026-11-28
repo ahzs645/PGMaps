@@ -1,0 +1,120 @@
+{
+  "format": "pgmaps-legal-pack/v1",
+  "id": "bc.private-managed-forest",
+  "version": "1.0.0",
+  "title": "BC private managed forest land",
+  "description": "The practice requirements for a block on private managed forest land outside a tree farm licence, woodlot licence and community forest agreement area, where the Private Managed Forest Land Act applies and FRPA’s forest practices do not: roads and trails held to the minimum, roads kept back from classed streams, crossings, sediment, drinking water and licensed intakes, tree and understory retention by stream class, reforestation by Coast and Interior density, and critical wildlife habitat. Stream classes are the Council Regulation’s Schedule, by channel width, for fish streams and streams above a licensed waterworks intake; the reviewer classes each stream. Every rule applies only when the land status review answers that the land is private managed forest land.",
+  "relatedPacks": [
+    {
+      "id": "bc.land-status",
+      "relationship": "Its managed-forest-land rule says when this pack’s rules are the block’s; the two questions are asked once and shared (sameAs)."
+    }
+  ],
+  "coverage": {
+    "from": "2026-11-17",
+    "through": "2026-11-27"
+  },
+  "facts": [
+    {
+      "id": "land",
+      "type": "choice",
+      "choices": [
+        "Crown land",
+        "Private land",
+        "Both Crown and private land",
+        "Federal land, including an Indian reserve",
+        "Treaty settlement land"
+      ],
+      "label": "What land is the block on? Crown land is land vested in the provincial government (the Land Act meaning, Forest Act §1); private land is land that is not Crown land. A reserve and treaty settlement land are asked apart: these packs do not assess them.",
+      "sameAs": "bc.land-status:land"
+    },
+    {
+      "id": "managed-forest",
+      "type": "boolean",
+      "sameAs": "bc.land-status:managed-forest",
+      "label": "Is the block’s private land private managed forest land: land under a management commitment and classified as managed forest land under the Assessment Act (PMFLA §1), or land classified as managed forest land when the Act came into force and deemed so without a commitment (§45)?"
+    },
+    {
+      "id": "licence-area",
+      "type": "choice",
+      "sameAs": "bc.land-status:licence-area",
+      "choices": [
+        "A tree farm licence",
+        "A community forest agreement",
+        "A woodlot licence",
+        "A First Nations woodland licence",
+        "None of these"
+      ],
+      "label": "Is the block in the area of an area-based licence (Forest Act §1), on its Crown land or on private land the licence includes?"
+    },
+    {
+      "id": "region",
+      "type": "choice",
+      "choices": ["The Interior", "The Coast"],
+      "label": "Is the land on the Coast, the area of the former Coast Forest Region, or in the Interior, the rest of the province (Council Matters Regulation §1)?"
+    },
+    {
+      "id": "class-a",
+      "type": "boolean",
+      "label": "Is the cutblock beside a class A stream: a fish stream, or a stream above a licensed waterworks intake, with a channel 10 m wide or wider (Council Regulation Schedule §1(1)(a))?"
+    },
+    {
+      "id": "class-b",
+      "type": "boolean",
+      "label": "Is the cutblock beside a class B stream: a fish stream, or a stream above a licensed waterworks intake, with a channel 3 m wide or wider but narrower than 10 m (Schedule §1(1)(b))?"
+    },
+    {
+      "id": "class-c",
+      "type": "boolean",
+      "label": "Is the cutblock beside a class C stream: a fish stream, or a stream above a licensed waterworks intake, with a channel 1.5 m wide or wider but narrower than 3 m (Schedule §1(1)(c))?"
+    },
+    {
+      "id": "class-c-steep",
+      "type": "boolean",
+      "label": "Is that class C stream’s gradient more than 8% (Council Regulation §29(3)–(4))?"
+    },
+    {
+      "id": "class-d-e",
+      "type": "boolean",
+      "label": "Is the cutblock beside a class D stream (a fish stream, or one above a licensed waterworks intake, narrower than 1.5 m) or a class E stream (1.5 m wide or wider and flowing directly into a class A, B, C or D stream) (Schedule §1(1)(d), (2))?"
+    },
+    {
+      "id": "road-near-stream",
+      "type": "boolean",
+      "label": "Will a road be built within 30 m of a class A or B stream, or within 10 m of a class C, D or E stream, slope distance (Council Regulation §16)?"
+    },
+    {
+      "id": "crossing",
+      "type": "boolean",
+      "label": "Will a road or logging trail cross a stream with a bridge, culvert or ford (Council Regulation §17)?"
+    },
+    {
+      "id": "drinking-intake",
+      "type": "boolean",
+      "label": "Is there a drinking water intake, licensed for a domestic or industrial purpose and drunk by people, whose water the block’s harvesting, roads or silviculture could reach (Council Regulation §14.1)?"
+    },
+    {
+      "id": "intake-upslope",
+      "type": "boolean",
+      "label": "Will a road be built within 100 m upslope, slope distance, of a licensed waterworks intake (Council Regulation §20(2))?"
+    },
+    {
+      "id": "wildlife-notice",
+      "type": "boolean",
+      "label": "Has the wildlife minister given the owner notice establishing critical wildlife habitat on the land, a notice that names the area where road building and harvesting must be modified (PMFL Regulation §§5, 7)?"
+    },
+    {
+      "id": "possible-habitat",
+      "type": "boolean",
+      "label": "Does the owner know that the land may hold habitat for a species on the ministry’s published list of species at risk without enough habitat on Crown land in the ecoregion (PMFL Regulation §8)?"
+    }
+  ],
+  "parameters": [],
+  "sourceFiles": [
+    "sources/bc/pmfla.json",
+    "sources/bc/pmfl-council-regulation.json",
+    "sources/bc/pmfl-regulation.json",
+    "sources/bc/pmfl-council-matters-regulation.json"
+  ],
+  "ruleFiles": ["rules/bc/private-managed-forest.json"]
+}

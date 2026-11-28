@@ -296,7 +296,7 @@
       "n": "14",
       "relevance": "block",
       "bearsOn": "A recorded holder may use, enter and occupy the surface of a claim or lease for exploration and production once any Mines Act permit is issued, and on request is issued a free use permit or occupant licence to cut for the timber; a land use designation or objective does not preclude its applications except in parks, ecological reserves, ELUA no-mining areas and designated Land Act areas.",
-      "review": "screen",
+      "review": "rule",
       "coveredBy": [
         "ground:mineral-placer-tenure"
       ],
@@ -304,7 +304,8 @@
         "mining",
         "harvest-authority",
         "objectives"
-      ]
+      ],
+      "gapNote": "The mineral tenure pack raises the surface rights, the Mines Act permit before mining activity and the Forest Act licence or permit to cut; s. 14(5) (designations do not preclude applications) is not asked."
     },
     {
       "n": "15",
@@ -320,14 +321,16 @@
       "n": "16",
       "relevance": "block",
       "bearsOn": "Land Act acquisitions applied for before a claim have priority; a later disposition of surface rights over a valid mineral title does not diminish the holder's rights except as an order of the chief gold commissioner or minister, a Surface Rights Board settlement or a quit claim agreement determines.",
-      "review": "screen",
+      "review": "rule",
       "coveredBy": [
         "ground:mineral-placer-tenure"
       ],
       "topics": [
         "mining",
         "crown-land"
-      ]
+      ],
+      "gapPriority": "low",
+      "gapNote": "Subsection (3) is quoted in the surface rights finding; whether a harvest is a disposition of surface rights the Act does not say, and the finding says so."
     },
     {
       "n": "17",

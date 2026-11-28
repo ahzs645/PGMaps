@@ -1,7 +1,8 @@
 /**
  * What the block's ground read (*On this ground*, `ground/groundRead.ts`) offers the land status
  * review (`bc.land-status`): a candidate answer for what land the block is on and which area-based
- * licence holds it, each with the mapped shares it rests on. A candidate is never an answer: the
+ * licence holds it, and to the mining review (`bc.mineral-tenure`) whether a mineral title lies over
+ * it, each with the mapped shares it rests on. A candidate is never an answer: the
  * reviewer's **Use** sets the fact. A layer that was not read offers nothing and says so; nothing
  * mapped is offered only as "nothing mapped", because ParcelMap BC's fabric and the licence layers
  * are records, not the title.
@@ -11,6 +12,7 @@
 import type { GroundContextRead, GroundInstrumentRead, GroundRead } from '../ground/record'
 
 export const LAND_STATUS_INSTRUMENT = 'bc.land-status'
+export const MINERAL_TENURE_INSTRUMENT = 'bc.mineral-tenure'
 
 /** The land choices, as the pack words them. */
 export const LAND = {
@@ -37,9 +39,17 @@ export const NO_LICENCE_AREA = 'None of these'
  */
 export const WHOLE_SHARE_PERCENT = 99.5
 
+/**
+ * A mapped overlap smaller than this, in hectares (100 m²), is read as two drawn boundaries meeting,
+ * not as land of that kind in the block: the back-test of 27 November 2026 found private parcels
+ * touching harvested blocks by 1–6 m² and candidate old forest areas by 10–30 m². It is a screen,
+ * not a survey: the sliver is named, and the offer says so.
+ */
+export const SLIVER_HA = 0.01
+
 export interface LandOffer {
-  fact: 'land' | 'licence-area'
-  value: string
+  fact: 'land' | 'licence-area' | 'mineral-title'
+  value: string | boolean
   /** What the offer rests on, as the read holds it. */
   basis: string
 }
@@ -53,7 +63,9 @@ export interface LandCandidates {
 
 const pct = (share: number) => `${share >= 10 ? share.toFixed(0) : share.toFixed(1)}%`
 const shareOf = (read: { coveredHa: number }, footprintHa: number) =>
-  footprintHa > 0 ? Math.min(100, (read.coveredHa / footprintHa) * 100) : 0
+  footprintHa > 0 && read.coveredHa >= SLIVER_HA ? Math.min(100, (read.coveredHa / footprintHa) * 100) : 0
+const sliverM2 = (read: { coveredHa: number }) =>
+  read.coveredHa > 0 && read.coveredHa < SLIVER_HA ? Math.round(read.coveredHa * 10_000) : 0
 const named = (r: { features: { id: string; name: string }[] }) =>
   r.features
     .slice(0, 3)
@@ -85,6 +97,16 @@ export function landCandidates(read: GroundRead | undefined): LandCandidates | n
     const privateShare = shareOf(parcels!, read.footprintHa)
     const reserveShare = shareOf(reserves!, read.footprintHa)
     const treatyShare = shareOf(treaty!, read.footprintHa)
+    const slivers = [
+      [parcels!, 'Private parcels'],
+      [reserves!, 'Indian reserve land'],
+      [treaty!, 'Treaty land'],
+    ] as const
+    for (const [r, what] of slivers)
+      if (sliverM2(r))
+        notes.push(
+          `${what} touches the block by only ${sliverM2(r)} m², read as the two boundaries meeting rather than land of that kind in the block; check the survey plan.`,
+        )
     const truncated = [parcels!, reserves!, treaty!].some((r) => r.status === 'truncated')
     if (truncated) notes.push('A layer holds more records here than were kept, so its share may be low.')
     if (reserveShare >= WHOLE_SHARE_PERCENT)
@@ -128,6 +150,11 @@ export function landCandidates(read: GroundRead | undefined): LandCandidates | n
       .map((l) => ({ ...l, share: shareOf(l.read!, read.footprintHa) }))
       .filter((l) => l.share > 0)
       .sort((a, b) => b.share - a.share)
+    for (const l of licences)
+      if (sliverM2(l.read!))
+        notes.push(
+          `${l.choice.replace(/^An? /, '')} touches the block by only ${sliverM2(l.read!)} m², read as the licence boundary meeting the block's.`,
+        )
     if (!mapped.length)
       offers.push({
         fact: 'licence-area',
@@ -147,6 +174,27 @@ export function landCandidates(read: GroundRead | undefined): LandCandidates | n
           `Licence areas cover only part of the block (${mapped.map((m) => `${m.choice.replace(/^An? /, '')} ${pct(m.share)}`).join(', ')}): answer for the part harvested under it.`,
         )
     }
+  }
+  // A mineral or placer title over the block (the block only: its roads are not in the footprint).
+  const tenure = instrument('mineral-placer-tenure')
+  if (!tenure || tenure.status === 'failed')
+    notes.push('Not read: mineral and placer tenures. No mineral title is offered.')
+  else if (shareOf(tenure, read.footprintHa) > 0)
+    offers.push({
+      fact: 'mineral-title',
+      value: true,
+      basis: `${named(tenure)} ${tenure.features.length === 1 ? 'lies' : 'lie'} over ${pct(shareOf(tenure, read.footprintHa))} of the block`,
+    })
+  else {
+    if (sliverM2(tenure))
+      notes.push(
+        `A mineral tenure touches the block by only ${sliverM2(tenure)} m², read as the two boundaries meeting.`,
+      )
+    offers.push({
+      fact: 'mineral-title',
+      value: false,
+      basis: 'No mineral or placer tenure is mapped on the block; its roads were not read',
+    })
   }
   return { readOn: read.readOn, offers, notes }
 }
